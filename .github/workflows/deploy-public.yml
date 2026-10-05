@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  PUBLIC_REPO: xlthimolx/djpult-pwa-puplic
+  PUBLIC_REPO: xlthimolx/djpult-live
 
 jobs:
   deploy:
