@@ -11,6 +11,7 @@
   <div class="max-w-6xl mx-auto p-4 space-y-4">
     <header class="flex items-center justify-between">
       <div class="flex items-center space-x-3">
+        <a id="back-link" href="index.html" class="text-sm bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-xl" title="Zurück zum DJ-Pult">&larr; DJ-Pult</a>
         <h1 class="text-3xl font-bold">DJ Remote</h1>
         <span id="remote-status" class="text-xs px-2 py-1 rounded bg-gray-700">Getrennt</span>
       </div>
@@ -81,5 +82,15 @@
   </div>
 
   <script src="remote.js"></script>
+  <script>
+    // Wurde die Seite aus dem Pult geoeffnet, einfach schliessen; sonst zum Pult navigieren.
+    document.getElementById("back-link").addEventListener("click", (event) => {
+      if (window.opener) {
+        event.preventDefault();
+        window.close();
+        setTimeout(() => { window.location.href = "index.html"; }, 200);
+      }
+    });
+  </script>
 </body>
 </html>
