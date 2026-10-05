@@ -65,7 +65,23 @@ function cleanName(filename) {
     .trim();
 }
 
+function revokeAllSongUrls() {
+  const urls = [];
+  Object.values(categories).forEach((cat) => cat.items.forEach((song) => urls.push(song.url)));
+  [specialTracks.timeout, specialTracks.walkon, ...specialTracks.pauses].forEach((track) => {
+    if (track && track.url) urls.push(track.url);
+  });
+  urls.forEach((url) => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      /* ignorieren */
+    }
+  });
+}
+
 function resetCategories() {
+  revokeAllSongUrls();
   Object.values(categories).forEach((cat) => {
     cat.items = [];
   });
@@ -75,6 +91,8 @@ function resetCategories() {
 }
 
 function handleFiles(fileList) {
+  // Laufenden Song vor dem Freigeben der alten Dateiverweise sauber beenden
+  if (currentAudio) stopAudio(true);
   loadPlayCounts();
   resetCategories();
   const files = Array.from(fileList || []);
@@ -285,6 +303,41 @@ function renderCategories() {
   updateSearchCount(totalMatches);
 }
 
+function resumeAudioContext() {
+  if (!audioCtx || audioCtx.state === "running") return Promise.resolve();
+  return audioCtx.resume().catch((err) => {
+    console.warn("Konnte AudioContext nicht fortsetzen:", err);
+  });
+}
+
+let toastTimer = null;
+function showToast(message) {
+  let toast = document.getElementById("toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "toast";
+    toast.className = "toast";
+    toast.setAttribute("role", "status");
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add("toast-visible");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("toast-visible"), 4000);
+}
+
+function handlePlaybackFailure(err, displayTitle) {
+  if (err && err.name === "AbortError") return; // schnelles Weiterschalten, kein echter Fehler
+  console.error("Audio-Wiedergabe fehlgeschlagen:", err);
+  clearNowPlaying();
+  const name = displayTitle ? `\u201E${displayTitle}\u201C` : "Song";
+  if (err && err.name === "NotAllowedError") {
+    showToast(`${name} konnte nicht starten (Wiedergabe blockiert). Bitte nochmal tippen.`);
+  } else {
+    showToast(`${name} konnte nicht abgespielt werden.`);
+  }
+}
+
 function playAudio(file, displayTitle = "", categoryKey = null, songId = null) {
   const el = getAudioElement();
   if (!el) return;
@@ -316,16 +369,27 @@ function playAudio(file, displayTitle = "", categoryKey = null, songId = null) {
   incrementPlayCount(songId || displayTitle || file, categoryKey);
   updatePlayingHighlight();
   showNowPlaying(displayTitle);
-  if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume().catch((err) => console.warn("Konnte AudioContext nicht resumieren:", err));
-  }
+  resumeAudioContext();
   el.onloadedmetadata = () => {
     updateNowPlayingDuration(el);
     sendNowPlayingStatus({ title: displayTitle, category: categoryKey, duration: el.duration || 0 });
   };
   el.ontimeupdate = () => updateNowPlayingEta(el);
   el.onended = () => clearNowPlaying();
-  el.play().catch((err) => console.error("Audio-Wiedergabe blockiert oder fehlgeschlagen:", err));
+  el.onerror = () => handlePlaybackFailure(el.error, displayTitle);
+  const playPromise = el.play();
+  if (playPromise && playPromise.catch) {
+    playPromise.catch((err) => {
+      // einmal erneut versuchen: nach einer iOS-Unterbrechung klappt es oft erst nach dem Fortsetzen
+      if (err && err.name === "NotAllowedError" && audioCtx && audioCtx.state !== "running") {
+        resumeAudioContext()
+          .then(() => el.play())
+          .catch((retryErr) => handlePlaybackFailure(retryErr, displayTitle));
+      } else {
+        handlePlaybackFailure(err, displayTitle);
+      }
+    });
+  }
   sendNowPlayingStatus({ title: displayTitle, category: categoryKey });
 }
 
@@ -473,6 +537,18 @@ function formatTime(sec) {
     .padStart(2, "0");
   return `${m}:${s}`;
 }
+
+function syncAfterReturn() {
+  if (document.visibilityState !== "visible") return;
+  resumeAudioContext();
+  // Wurde die Wiedergabe vom System gestoppt, soll die Anzeige nicht weiter "laeuft" zeigen
+  if (nowPlaying.title && audioEl && audioEl.paused && !fadeIntervalId) {
+    clearNowPlaying();
+  }
+}
+
+document.addEventListener("visibilitychange", syncAfterReturn);
+window.addEventListener("pageshow", syncAfterReturn);
 
 document.addEventListener("DOMContentLoaded", () => {
   audioEl = getAudioElement();
@@ -1239,9 +1315,7 @@ function unlockAudioForRemote() {
   const el = getAudioElement();
   if (!el) return;
   ensureAudioGraph();
-  if (audioCtx && audioCtx.state === "suspended") {
-    audioCtx.resume().catch(() => {});
-  }
+  resumeAudioContext();
   // Versuch, Autoplay-Sperre zu loesen: kurz stumm spielen/pause
   try {
     const prevMuted = el.muted;
