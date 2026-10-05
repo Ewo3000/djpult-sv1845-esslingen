@@ -2,11 +2,20 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "2.7";
+const APP_VERSION = "3.0";
 const APP_BUILD = "2026-10-06";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "3.0",
+    date: "2026-10-06",
+    changes: [
+      "Neu: Markierungen Top-Stimmung und Mitklatschen (lange auf einen Song drücken oder über den Button Markierungen).",
+      "Verwaltungsfenster mit Suche, Anhören, Entfernen und Verschieben zwischen den Gruppen.",
+      "Sichern als markierungen.json in den Musikordner; wird beim Laden der Songs automatisch eingelesen.",
+    ],
+  },
   {
     version: "2.7",
     date: "2026-10-06",

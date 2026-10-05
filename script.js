@@ -98,7 +98,13 @@ function handleFiles(fileList) {
   const files = Array.from(fileList || []);
   let toggle = 0;
 
+  let marksFile = null;
+
   files.forEach((file) => {
+    if (file.name.toLowerCase() === MARKS_FILENAME) {
+      marksFile = file;
+      return;
+    }
     const relPath = file.webkitRelativePath || file.name;
     const isAudio =
       (file.type && file.type.startsWith("audio/")) ||
@@ -158,6 +164,7 @@ function handleFiles(fileList) {
   collapseHeader();
   sendSongsListToRemote();
   resetPageScroll();
+  if (marksFile) loadMarksFromFile(marksFile);
 }
 
 // Nach Dateiauswahl/Layoutwechsel kann Safari die Seite nach oben/unten verschoben lassen.
@@ -203,6 +210,412 @@ function ensureAudioGraph() {
     gainNode.connect(audioCtx.destination);
   }
   return audioCtx;
+}
+
+// ---------------------------------------------------------------------------
+// Markierungen: "Top-Stimmung" und "Mitklatschen"
+// Gespeichert lokal im Browser (localStorage) und als Datei markierungen.json,
+// die beim Laden des Musikordners automatisch eingelesen wird.
+// ---------------------------------------------------------------------------
+const MARK_GROUPS = {
+  top: { label: "Top-Stimmung", short: "Top", symbol: "★" },
+  clap: { label: "Mitklatschen", short: "Klatschen", symbol: "👏" },
+};
+const MARKS_KEY = "songMarks";
+const MARKS_FILENAME = "markierungen.json";
+const LONG_PRESS_MS = 600;
+let marks = { top: new Set(), clap: new Set() };
+let marksDirty = false;
+let marksTab = "all";
+let marksSearch = "";
+
+function loadMarks() {
+  try {
+    const raw = localStorage.getItem(MARKS_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    marks.top = new Set(Array.isArray(data.top) ? data.top : []);
+    marks.clap = new Set(Array.isArray(data.clap) ? data.clap : []);
+    marksDirty = !!data.dirty;
+  } catch (e) {
+    console.warn("Konnte Markierungen nicht laden:", e);
+  }
+}
+
+function saveMarks() {
+  try {
+    localStorage.setItem(
+      MARKS_KEY,
+      JSON.stringify({ top: [...marks.top], clap: [...marks.clap], dirty: marksDirty })
+    );
+  } catch (e) {
+    console.warn("Konnte Markierungen nicht speichern:", e);
+  }
+}
+
+function marksToJson() {
+  const sorted = (set) => [...set].sort((a, b) => a.localeCompare(b, "de"));
+  return JSON.stringify({ version: 1, top: sorted(marks.top), clap: sorted(marks.clap) }, null, 2);
+}
+
+function applyMarksData(data, mode) {
+  if (!data || typeof data !== "object") throw new Error("Ungueltige Markierungsdatei");
+  const clean = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === "string") : []);
+  const top = clean(data.top);
+  const clap = clean(data.clap);
+  if (mode === "merge") {
+    top.forEach((id) => marks.top.add(id));
+    clap.forEach((id) => marks.clap.add(id));
+  } else {
+    marks.top = new Set(top);
+    marks.clap = new Set(clap);
+  }
+}
+
+function getAllSongs() {
+  return Object.values(categories).flatMap((cat) => cat.items);
+}
+
+function compareByDisplay(a, b) {
+  return a.display.localeCompare(b.display, "de", { sensitivity: "base" });
+}
+
+function createMarksEl(id) {
+  const symbols = Object.entries(MARK_GROUPS)
+    .filter(([group]) => marks[group].has(id))
+    .map(([, def]) => def.symbol);
+  if (!symbols.length) return null;
+  const el = document.createElement("span");
+  el.className = "song-marks";
+  el.setAttribute("aria-hidden", "true");
+  el.textContent = symbols.join(" ");
+  return el;
+}
+
+function updateSongMarks(id) {
+  document.querySelectorAll(".song-button").forEach((btn) => {
+    if (btn.dataset.songId !== id) return;
+    const old = btn.querySelector(".song-marks");
+    if (old) old.remove();
+    const el = createMarksEl(id);
+    if (el) btn.insertBefore(el, btn.querySelector(".song-count"));
+  });
+}
+
+function refreshAllSongMarks() {
+  const ids = new Set(getAllSongs().map((song) => song.id));
+  ids.forEach(updateSongMarks);
+}
+
+function toggleMark(group, id) {
+  if (marks[group].has(id)) marks[group].delete(id);
+  else marks[group].add(id);
+  marksDirty = true;
+  saveMarks();
+  updateSongMarks(id);
+  updateMarksStatus();
+  renderMarksPanel();
+}
+
+function updateMarksStatus() {
+  const dot = document.getElementById("marks-dirty");
+  if (dot) dot.classList.toggle("hidden", !marksDirty);
+  const status = document.getElementById("marks-status");
+  if (status) {
+    status.textContent = marksDirty
+      ? "Änderungen noch nicht gesichert"
+      : "Gesichert / aus Datei geladen";
+    status.classList.toggle("marks-status-dirty", marksDirty);
+  }
+}
+
+// ---- Menue bei langem Druck auf einen Song --------------------------------
+function closeMarkMenu() {
+  const menu = document.getElementById("mark-menu");
+  if (menu) menu.remove();
+  document.removeEventListener("pointerdown", onMarkMenuOutside, true);
+}
+
+function onMarkMenuOutside(event) {
+  const menu = document.getElementById("mark-menu");
+  if (menu && !menu.contains(event.target)) closeMarkMenu();
+}
+
+function openMarkMenu(song, anchor) {
+  closeMarkMenu();
+  const menu = document.createElement("div");
+  menu.id = "mark-menu";
+  menu.className = "mark-menu";
+
+  const title = document.createElement("div");
+  title.className = "mark-menu-title";
+  title.textContent = song.display;
+  menu.appendChild(title);
+
+  Object.entries(MARK_GROUPS).forEach(([group, def]) => {
+    const btn = document.createElement("button");
+    btn.className = "mark-menu-btn";
+    const refresh = () => {
+      const on = marks[group].has(song.id);
+      btn.classList.toggle("on", on);
+      btn.textContent = `${def.symbol} ${def.label}${on ? "  ✓" : ""}`;
+    };
+    refresh();
+    btn.addEventListener("click", () => {
+      toggleMark(group, song.id);
+      refresh();
+    });
+    menu.appendChild(btn);
+  });
+
+  const done = document.createElement("button");
+  done.className = "mark-menu-done";
+  done.textContent = "Fertig";
+  done.addEventListener("click", closeMarkMenu);
+  menu.appendChild(done);
+
+  document.body.appendChild(menu);
+  const rect = anchor.getBoundingClientRect();
+  const width = menu.offsetWidth;
+  const height = menu.offsetHeight;
+  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+  let top = rect.bottom + 6;
+  if (top + height > window.innerHeight - 170) top = Math.max(60, rect.top - height - 6);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+  setTimeout(() => document.addEventListener("pointerdown", onMarkMenuOutside, true), 0);
+}
+
+// ---- Verwaltungsfenster ----------------------------------------------------
+function toggleMarksPanel() {
+  const panel = document.getElementById("marks-panel");
+  if (!panel) return;
+  panel.classList.toggle("hidden");
+  if (!panel.classList.contains("hidden")) {
+    updateMarksStatus();
+    renderMarksPanel();
+  }
+}
+
+function makeMarkToggle(group, id) {
+  const def = MARK_GROUPS[group];
+  const btn = document.createElement("button");
+  btn.className = "mark-toggle" + (marks[group].has(id) ? " on" : "");
+  btn.textContent = `${def.symbol} ${def.short}`;
+  btn.title = `${def.label} ${marks[group].has(id) ? "entfernen" : "hinzufügen"}`;
+  btn.addEventListener("click", () => toggleMark(group, id));
+  return btn;
+}
+
+function renderMarksPanel() {
+  const panel = document.getElementById("marks-panel");
+  if (!panel || panel.classList.contains("hidden")) return;
+  const list = document.getElementById("marks-list");
+  const scroll = list.scrollTop;
+  list.innerHTML = "";
+
+  const songs = getAllSongs();
+  const byId = new Map(songs.map((song) => [song.id, song]));
+
+  document.querySelectorAll("#marks-tabs [data-tab]").forEach((tab) => {
+    const key = tab.dataset.tab;
+    if (key === "all") {
+      tab.textContent = `Alle Songs (${songs.length})`;
+    } else {
+      tab.textContent = `${MARK_GROUPS[key].symbol} ${MARK_GROUPS[key].label} (${marks[key].size})`;
+    }
+    tab.classList.toggle("active", key === marksTab);
+  });
+  const searchInput = document.getElementById("marks-search");
+  if (searchInput) searchInput.classList.toggle("hidden", marksTab !== "all");
+
+  let rows;
+  if (marksTab === "all") {
+    const term = marksSearch.trim().toLowerCase();
+    rows = songs
+      .filter((song) => !term || song.display.toLowerCase().includes(term))
+      .map((song) => ({ id: song.id, display: song.display, song }));
+  } else {
+    rows = [...marks[marksTab]].map((id) => {
+      const song = byId.get(id);
+      return { id, display: song ? song.display : cleanName(id), song: song || null };
+    });
+  }
+  rows.sort(compareByDisplay);
+
+  if (!rows.length) {
+    const empty = document.createElement("div");
+    empty.className = "marks-empty";
+    if (marksTab === "all") {
+      empty.textContent = songs.length
+        ? "Keine Songs gefunden."
+        : "Noch keine Songs geladen. Zuerst „Songs laden“.";
+    } else {
+      empty.textContent =
+        "Noch keine Songs in dieser Gruppe. Im Reiter „Alle Songs“ markieren oder einen Song im Pult lange drücken.";
+    }
+    list.appendChild(empty);
+  }
+
+  rows.forEach((row) => {
+    const el = document.createElement("div");
+    el.className = "marks-row" + (row.song ? "" : " missing");
+
+    const play = document.createElement("button");
+    play.className = "mark-play";
+    play.textContent = "▶";
+    play.title = "Kurz anspielen (zählt nicht mit)";
+    if (row.song) {
+      play.addEventListener("click", () => playAudio(row.song.url, row.song.display, null, null));
+    } else {
+      play.disabled = true;
+    }
+
+    const name = document.createElement("span");
+    name.className = "marks-name";
+    name.textContent = row.display;
+    const note = document.createElement("span");
+    note.className = "marks-note";
+    if (!row.song) {
+      note.textContent = " nicht geladen";
+      name.appendChild(note);
+    } else if (categories[row.song.category]) {
+      // Kategorie als Hinweis, damit gleichnamige Songs unterscheidbar sind
+      note.textContent = ` ${categories[row.song.category].title}`;
+      name.appendChild(note);
+    }
+
+    const controls = document.createElement("span");
+    controls.className = "marks-controls";
+    if (marksTab === "all") {
+      controls.append(makeMarkToggle("top", row.id), makeMarkToggle("clap", row.id));
+    } else {
+      const other = marksTab === "top" ? "clap" : "top";
+      const remove = document.createElement("button");
+      remove.className = "mark-remove";
+      remove.textContent = "✕ Entfernen";
+      remove.addEventListener("click", () => toggleMark(marksTab, row.id));
+      controls.append(makeMarkToggle(other, row.id), remove);
+    }
+
+    el.append(play, name, controls);
+    list.appendChild(el);
+  });
+  list.scrollTop = scroll;
+}
+
+// ---- Sichern / Laden / Zuruecksetzen ---------------------------------------
+async function exportMarks() {
+  const file = new File([marksToJson()], MARKS_FILENAME, { type: "application/json" });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "DJ-Pult Markierungen" });
+      marksDirty = false;
+      saveMarks();
+      updateMarksStatus();
+      showToast("In Dateien in den Musikordner sichern, dann ist alles gespeichert.", "info");
+      return;
+    }
+  } catch (err) {
+    if (err && err.name === "AbortError") return; // abgebrochen: weiterhin "nicht gesichert"
+    console.warn("Teilen nicht moeglich, lade als Datei herunter:", err);
+  }
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = MARKS_FILENAME;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  marksDirty = false;
+  saveMarks();
+  updateMarksStatus();
+  showToast("Datei heruntergeladen. In den Musikordner legen.", "info");
+}
+
+function afterMarksChangedBulk() {
+  saveMarks();
+  refreshAllSongMarks();
+  updateMarksStatus();
+  renderMarksPanel();
+}
+
+function importMarksFromText(text, source) {
+  let data;
+  try {
+    data = JSON.parse(text);
+    applyMarksData(data, marksDirty ? "merge" : "replace");
+  } catch (err) {
+    console.error("Markierungsdatei unlesbar:", err);
+    showToast("Markierungsdatei konnte nicht gelesen werden.");
+    return;
+  }
+  const merged = marksDirty;
+  if (!merged) marksDirty = false;
+  afterMarksChangedBulk();
+  showToast(
+    `Markierungen ${source}: ${marks.top.size} Top-Stimmung, ${marks.clap.size} Mitklatschen` +
+      (merged ? " (mit deinen ungesicherten Änderungen zusammengeführt)" : ""),
+    "info"
+  );
+}
+
+function loadMarksFromFile(file) {
+  file
+    .text()
+    .then((text) => importMarksFromText(text, "geladen"))
+    .catch((err) => {
+      console.error(err);
+      showToast("Markierungsdatei konnte nicht gelesen werden.");
+    });
+}
+
+function resetMarks() {
+  if (!marks.top.size && !marks.clap.size) return;
+  if (!confirm("Alle Markierungen (Top-Stimmung und Mitklatschen) löschen?")) return;
+  marks = { top: new Set(), clap: new Set() };
+  marksDirty = true;
+  afterMarksChangedBulk();
+}
+
+function initMarksUI() {
+  const bind = (id, handler) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener("click", handler);
+  };
+  bind("marks-toggle", toggleMarksPanel);
+  bind("marks-close", toggleMarksPanel);
+  bind("marks-export", exportMarks);
+  bind("marks-reset", resetMarks);
+  bind("marks-import", () => document.getElementById("marks-file")?.click());
+
+  const fileInput = document.getElementById("marks-file");
+  if (fileInput) {
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files && fileInput.files[0];
+      fileInput.value = "";
+      if (file) loadMarksFromFile(file);
+    });
+  }
+  document.querySelectorAll("#marks-tabs [data-tab]").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      marksTab = tab.dataset.tab;
+      renderMarksPanel();
+    });
+  });
+  const search = document.getElementById("marks-search");
+  if (search) {
+    search.addEventListener("input", () => {
+      marksSearch = search.value;
+      renderMarksPanel();
+    });
+  }
+  updateMarksStatus();
+  // Browser bitten, die lokalen Daten nicht bei Speicherknappheit zu loeschen
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persist().catch(() => {});
+  }
 }
 
 function getCountRange(cat) {
@@ -262,9 +675,32 @@ function buildSongButton(song, cat, range) {
   const badge = document.createElement("span");
   badge.className = "song-count";
   badge.textContent = count.toString();
-  btn.append(eq, name, badge);
+  const markEl = createMarksEl(song.id);
+  if (markEl) btn.append(eq, name, markEl, badge);
+  else btn.append(eq, name, badge);
+
+  // Langer Druck oeffnet das Markierungs-Menue; der folgende Klick spielt dann nicht ab
+  let pressTimer = null;
+  let longPressed = false;
+  const cancelPress = () => clearTimeout(pressTimer);
+  btn.addEventListener("pointerdown", () => {
+    longPressed = false;
+    cancelPress();
+    pressTimer = setTimeout(() => {
+      longPressed = true;
+      openMarkMenu(song, btn);
+    }, LONG_PRESS_MS);
+  });
+  ["pointerup", "pointerleave", "pointercancel"].forEach((type) =>
+    btn.addEventListener(type, cancelPress)
+  );
+  btn.addEventListener("contextmenu", (event) => event.preventDefault());
 
   btn.addEventListener("click", () => {
+    if (longPressed) {
+      longPressed = false;
+      return;
+    }
     playAudio(song.url, song.display, song.category, song.id);
     clearSearch();
   });
@@ -319,7 +755,7 @@ function resumeAudioContext() {
 }
 
 let toastTimer = null;
-function showToast(message) {
+function showToast(message, type = "error") {
   let toast = document.getElementById("toast");
   if (!toast) {
     toast = document.createElement("div");
@@ -329,6 +765,7 @@ function showToast(message) {
     document.body.appendChild(toast);
   }
   toast.textContent = message;
+  toast.classList.toggle("toast-info", type === "info");
   toast.classList.add("toast-visible");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toast.classList.remove("toast-visible"), 4000);
@@ -559,6 +996,8 @@ document.addEventListener("visibilitychange", syncAfterReturn);
 window.addEventListener("pageshow", syncAfterReturn);
 
 document.addEventListener("DOMContentLoaded", () => {
+  loadMarks();
+  initMarksUI();
   audioEl = getAudioElement();
   if (audioEl) {
     audioEl.preload = "none";

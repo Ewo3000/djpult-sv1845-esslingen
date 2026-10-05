@@ -25,7 +25,7 @@
         <button id="load-songs-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg">
           Songs laden
         </button>
-        <input id="filepicker" type="file" class="hidden" accept="audio/*" multiple webkitdirectory />
+        <input id="filepicker" type="file" class="hidden" accept="audio/*,.json,application/json" multiple webkitdirectory />
         <button id="pairing-toggle" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">
           Remote koppeln
         </button>
@@ -96,6 +96,16 @@
             <p class="mt-1">Beide Ger&auml;te m&uuml;ssen im selben Netz oder Hotspot sein.</p>
           </div>
           <div>
+            <div class="font-semibold">Markierungen: Top-Stimmung und Mitklatschen</div>
+            <ul class="list-disc list-inside space-y-1">
+              <li><strong>Schnell markieren:</strong> Einen Song im Pult <strong>lange gedr&uuml;ckt halten</strong>. Es &ouml;ffnet sich ein Men&uuml; mit &bdquo;Top-Stimmung&ldquo; und &bdquo;Mitklatschen&ldquo;. Markierte Songs zeigen ein kleines Symbol im Button.</li>
+              <li><strong>Verwalten:</strong> Der Button <strong>Markierungen</strong> oben &ouml;ffnet die Liste. Reiter &bdquo;Alle Songs&ldquo; (mit Suche und &#9654; zum kurzen Anh&ouml;ren, das nicht mitz&auml;hlt), &bdquo;Top-Stimmung&ldquo; und &bdquo;Mitklatschen&ldquo;. Dort kannst du Songs entfernen oder in die andere Gruppe verschieben.</li>
+              <li><strong>Sichern:</strong> In der Liste auf <strong>Sichern</strong> tippen &rarr; &bdquo;In Dateien sichern&ldquo; &rarr; den Ordner <code>Songs laden</code> (neben <code>music</code> und <code>special_music</code>) in iCloud w&auml;hlen &rarr; bei der Frage &bdquo;Ersetzen&ldquo; best&auml;tigen. Gespeichert wird die Datei <code>markierungen.json</code>.</li>
+              <li><strong>Wieder laden:</strong> Beim n&auml;chsten &bdquo;Songs laden&ldquo; wird die Datei automatisch eingelesen. Alternativ in der Liste &bdquo;Datei laden&ldquo;.</li>
+              <li>Ein <span class="text-amber-400">&bull;</span> am Button <strong>Markierungen</strong> hei&szlig;t: &Auml;nderungen sind noch nicht gesichert. Die Zuordnung h&auml;ngt am Dateinamen &ndash; wird ein Song umbenannt, geht seine Markierung verloren.</li>
+            </ul>
+          </div>
+          <div>
             <div class="font-semibold">Als App installieren</div>
             <p><strong>iPad/iPhone (Safari):</strong> Teilen-Symbol antippen &rarr; &bdquo;Zum Home-Bildschirm&ldquo; &rarr; &bdquo;Hinzuf&uuml;gen&ldquo;. Danach starten, wie jede App, vom Home-Bildschirm &ndash; im Vollbild. <strong>Android/PC (Chrome):</strong> Men&uuml; &rarr; &bdquo;App installieren&ldquo;.</p>
             <p class="mt-1">Die Songs m&uuml;ssen nach jedem Start der App neu &uuml;ber &bdquo;Songs laden&ldquo; gew&auml;hlt werden.</p>
@@ -106,7 +116,29 @@
           </div>
         </div>
       </div>
-      <!-- Kopfleiste -->
+      <!-- Markierungen verwalten -->
+      <div id="marks-panel" class="marks-panel hidden">
+        <div class="marks-head">
+          <div class="marks-title">Markierungen</div>
+          <div id="marks-status"></div>
+          <button id="marks-close" class="top-btn text-xs">Schließen</button>
+        </div>
+        <div id="marks-tabs" class="marks-tabs">
+          <button data-tab="all">Alle Songs</button>
+          <button data-tab="top">Top-Stimmung</button>
+          <button data-tab="clap">Mitklatschen</button>
+        </div>
+        <input id="marks-search" type="search" placeholder="Song suchen" />
+        <div id="marks-list" class="marks-list"></div>
+        <div class="marks-foot">
+          <button id="marks-export">Sichern</button>
+          <button id="marks-import">Datei laden</button>
+          <button id="marks-reset">Alles zurücksetzen</button>
+          <input id="marks-file" type="file" accept=".json,application/json" class="hidden" />
+        </div>
+      </div>
+
+<!-- Kopfleiste -->
       <div id="top-bar" class="top-bar">
         <div class="top-group">
           <span class="text-gray-400">Zoom</span>
@@ -129,6 +161,7 @@
         </div>
         <span class="top-sep"></span>
         <div class="top-group">
+          <button id="marks-toggle" class="top-btn text-xs" title="Top-Stimmung und Mitklatschen verwalten">Markierungen<span id="marks-dirty" class="hidden text-amber-400">&nbsp;&bull;</span></button>
           <button id="info-toggle" onclick="toggleInfo()" class="top-btn text-xs">Info</button>
           <button id="version-toggle" onclick="toggleVersion()" class="top-btn text-xs text-gray-300">Ver.</button>
           <button id="reset-counts" class="top-btn top-btn-quiet text-xs" title="Alle Play-Zähler auf 0 setzen">Reset</button>
