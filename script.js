@@ -616,7 +616,6 @@ function renderSingleCategory(key) {
 
     btn.textContent = `${song.icon} ${song.display}`;
     btn.addEventListener("click", () => {
-      console.log("Song click", { id: song.id, category: song.category });
       playAudio(song.url, song.display, song.category, song.id);
       clearSearch();
     });
@@ -662,7 +661,6 @@ function initZoomControls() {
 function resetPlayCounts() {
   songPlayCounts = {};
   savePlayCounts();
-  console.log("Reset play counts");
   renderCategories();
 }
 
