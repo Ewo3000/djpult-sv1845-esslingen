@@ -41,85 +41,135 @@
         <div class="np-progress"><div id="now-playing-bar" class="np-progress-bar"></div></div>
       </div>
       <!-- Info / Release Notes -->
-      <div id="version-panel" class="fixed top-10 right-10 bg-gray-800 text-white text-xs px-3 py-2 rounded shadow hidden z-50 w-72 max-h-[calc(100vh-13rem)] overflow-y-auto">
+      <div id="version-panel" class="fixed top-10 right-10 bg-gray-800 text-white text-xs px-3 py-2 rounded shadow hidden z-50 w-72 panel-max overflow-y-auto">
         <div>Version <strong id="version-number">-</strong> <span class="text-gray-300">(<span id="version-build">-</span>)</span></div>
         <div class="text-gray-400">Cache: <span id="version-cache">-</span></div>
         <div class="font-semibold mt-2">Änderungen</div>
         <div id="version-changelog" class="space-y-2 mt-1"></div>
       </div>
-      <div id="info-panel" class="fixed top-10 right-10 bg-gray-800 text-white text-xs px-3 py-2 rounded shadow w-96 max-w-[90vw] max-h-[calc(100vh-13rem)] overflow-y-auto hidden info-panel z-50">
-        <div class="space-y-3">
-          <div>
-            <div class="font-semibold">Songs laden</div>
-            <p>&bdquo;Songs laden&ldquo; &ouml;ffnet die Dateiauswahl. W&auml;hle den Ordner mit der Musik (Unterordner <code>music</code> und <code>special_music</code>). Die Songs werden nur auf diesem Ger&auml;t gelesen, nichts wird hochgeladen. Nach dem Laden klappt der Kopfbereich automatisch ein.</p>
-          </div>
-          <div>
-            <div class="font-semibold">Kategorien</div>
-            <p>Jede Spalte ist eine Kategorie. Ein Tipp auf einen Song startet ihn sofort; l&auml;uft schon ein Song, wird er ersetzt. Die Zuordnung ergibt sich aus dem Dateinamen:</p>
-            <ul class="list-disc list-inside space-y-1 mt-1">
-              <li><code>_HIT</code> / <code>_ACE</code> &rarr; Ass/Angriff</li>
-              <li><code>_BLOCK</code> &rarr; Block</li>
-              <li><code>_OPP</code> &rarr; Gegner</li>
-              <li><code>_FUN</code> &rarr; Lustig</li>
-              <li>ohne Endung &rarr; auf die drei gr&uuml;nen Spalten verteilt</li>
-            </ul>
-          </div>
-          <div>
-            <div class="font-semibold">Untere Leiste</div>
-            <ul class="list-disc list-inside space-y-1">
-              <li><strong>Timeout</strong> / <strong>Walk-On</strong>: spielen die Songs aus <code>special_music</code> (<code>_TIMEOUT</code>, <code>_WALKON</code>).</li>
-              <li><strong>Pause-Buttons</strong>: einer pro Datei <code>_PAUSE1</code>, <code>_PAUSE2</code> &hellip;, automatisch angelegt.</li>
-              <li><strong>&#9733; Top-Stimmung / &#128079; Mitklatschen (zuf&auml;llig)</strong>: spielen einen zuf&auml;lligen Song aus der jeweiligen Markierungs-Gruppe (siehe unten).</li>
-              <li><strong>Eigene Punkte (zuf&auml;llig)</strong> &ndash; Stimmungslieder: w&auml;hlt einen Song aus Ass/Angriff, Block und den gr&uuml;nen Spalten. </li>
-              <li><strong>Gegnerpunkte (zuf&auml;llig)</strong> &ndash; Durchatmen: gleiches Prinzip, aber nur aus Gegner.</li>
-              <li><strong>So funktioniert der Zufall:</strong> Es kommen klar die Songs dran, die am seltensten gespielt wurden. Die zuletzt gespielten Songs werden &uuml;bersprungen, und je &ouml;fter ein Song schon lief, desto unwahrscheinlicher wird er.</li>
-              <li><strong>Stop</strong>: blendet den Song in ca. 1 Sekunde aus.</li>
-            </ul>
-          </div>
-          <div>
-            <div class="font-semibold">Anzeige &amp; Werkzeuge</div>
-            <ul class="list-disc list-inside space-y-1">
-              <li><strong>Now Playing</strong> (oben rechts): Titel und Restzeit; bei weniger als 10 Sekunden blinkt die Anzeige.</li>
-              <li><strong>Vol</strong>: Lautst&auml;rke-Regler.</li>
-              <li><strong>Suche</strong>: Treffer werden hervorgehoben und die Trefferzahl angezeigt. Nach einem Klick auf einen Song leert sich die Suche.</li>
-              <li><strong>Play-Z&auml;hler</strong>: Die Zahl rechts oben am Button zeigt, wie oft der Song gespielt wurde. Selten gespielte Songs leuchten kr&auml;ftig, oft gespielte werden blasser; der Song mit den wenigsten Wiedergaben der Spalte hat einen hellen Rahmen. So siehst du, was als N&auml;chstes dran ist. Die Z&auml;hler bleiben auf dem Ger&auml;t gespeichert; <strong>Reset</strong> setzt alle auf 0.</li>
-              <li><strong>Zoom</strong> &plusmn; ver&auml;ndert die Gr&ouml;&szlig;e der Buttons.</li>
-              <li><strong>Kopf ausblenden</strong> gibt mehr Platz f&uuml;r die Songs.</li>
-            </ul>
-          </div>
-          <div>
-            <div class="font-semibold">Remote (Handy als Fernbedienung)</div>
-            <ol class="list-decimal list-inside space-y-1">
-              <li>Am Pult Songs laden, dann <strong>Remote koppeln</strong> &ouml;ffnen und &bdquo;Offer erzeugen&ldquo;.</li>
-              <li>Am Handy <strong>Remote &ouml;ffnen</strong> (<code>remote.html</code>), Offer per QR-Scan oder Text einf&uuml;gen.</li>
-              <li>Das Handy erzeugt eine Answer; sie am Pult einf&uuml;gen oder scannen und &bdquo;Answer anwenden&ldquo;.</li>
-              <li>Status &bdquo;Verbunden&ldquo; &ndash; das Handy zeigt die Songs (ohne Gegner) und steuert Play, Stop, Zufall, Spezial-Buttons und Lautst&auml;rke.</li>
+      <div id="info-panel" class="info-modal hidden" role="dialog" aria-label="Anleitung">
+        <div class="info-head">
+          <div class="info-title">Anleitung</div>
+          <button id="info-close" class="top-btn text-xs">Schließen</button>
+        </div>
+        <div id="info-tabs" class="marks-tabs info-tabs">
+          <button data-info-tab="start" class="active">Start</button>
+          <button data-info-tab="bedienung">Bedienung</button>
+          <button data-info-tab="dateien">Dateien</button>
+          <button data-info-tab="markierungen">Markierungen</button>
+          <button data-info-tab="remote">Remote &amp; App</button>
+        </div>
+        <div class="info-body">
+
+          <section data-info-section="start">
+            <h3>In 5 Schritten loslegen</h3>
+            <ol>
+              <li><strong>Songs laden:</strong> Auf „Songs laden“ tippen und den Ordner <code>Songs laden</code> wählen (darin <code>music</code>, <code>special_music</code> und <code>markierungen.json</code>). Die Songs bleiben auf dem Gerät, nichts wird hochgeladen.</li>
+              <li><strong>Abspielen:</strong> Einen Song antippen. Ein neuer Song ersetzt den laufenden.</li>
+              <li><strong>Punkt!</strong> Unten <strong>Eigene Punkte</strong> (Stimmungslieder) oder <strong>Gegnerpunkte</strong> (Durchatmen) für einen zufälligen Song. <strong>★ Top-Stimmung</strong> und <strong>👏 Mitklatschen</strong> spielen zufällige Favoriten.</li>
+              <li><strong>Stoppen:</strong> <strong>Stop</strong> blendet den Song in etwa einer Sekunde aus.</li>
+              <li><strong>Merken:</strong> Einen Song <strong>lange drücken</strong>, um ihn zu markieren (Reiter „Markierungen“).</li>
             </ol>
-            <p class="mt-1">Beide Ger&auml;te m&uuml;ssen im selben Netz oder Hotspot sein.</p>
-          </div>
-          <div>
-            <div class="font-semibold">Markierungen</div>
-            <ul class="list-disc list-inside space-y-1">
-              <li><strong>Schnell markieren:</strong> Einen Song im Pult <strong>lange gedr&uuml;ckt halten</strong>. Es &ouml;ffnet sich ein Men&uuml; mit &bdquo;Top-Stimmung&ldquo; und &bdquo;Mitklatschen&ldquo;. Markierte Songs zeigen ein kleines Symbol im Button.</li>
-              <li><strong>Zwei weitere Markierungen (ohne Button, nur zum Merken):</strong> &#9203; <strong>Langer Aufbau</strong> &ndash; der Drop kommt erst sp&auml;t, das Lied braucht Vorlauf. &#128264; <strong>Zu leise</strong> &ndash; Lautst&auml;rke zu den anderen Songs zu niedrig, muss nachbearbeitet werden. Im Reiter der Verwaltung siehst du jeweils die ganze Liste.</li>
-              <li><strong>Verwalten:</strong> Der Button <strong>Markierungen</strong> oben &ouml;ffnet die Liste. Reiter &bdquo;Alle Songs&ldquo; (mit Suche und &#9654; zum kurzen Anh&ouml;ren, das nicht mitz&auml;hlt), &bdquo;Top-Stimmung&ldquo; und &bdquo;Mitklatschen&ldquo;. In den Gruppen siehst du bei jedem Song beide Schalter (Top und Klatschen) und kannst ihn mit &bdquo;Entfernen&ldquo; herausnehmen oder auch der anderen Gruppe zuordnen.</li>
-              <li><strong>Sichern:</strong> In der Liste auf <strong>Sichern</strong> tippen &rarr; &bdquo;In Dateien sichern&ldquo; &rarr; den Ordner <code>Songs laden</code> (neben <code>music</code> und <code>special_music</code>) in iCloud w&auml;hlen &rarr; Gespeichert wird <code>markierungen.json</code>. iPadOS legt bei jedem Sichern eine neue Datei an (<code>markierungen 2.json</code> &hellip;); beim Laden nimmt die App automatisch die neueste. &Auml;ltere Dateien kannst du in der Dateien-App l&ouml;schen.</li>
-              <li><strong>Sicherheit:</strong> Jede &Auml;nderung wird automatisch im Browser gespeichert. Vor &bdquo;Alles zur&uuml;cksetzen&ldquo; und vor dem Einlesen einer anderen Datei merkt sich die App den letzten Stand &ndash; &bdquo;Letzten Stand wiederherstellen&ldquo; holt ihn zur&uuml;ck. Nach ein paar &Auml;nderungen erinnert ein kleiner Hinweis ans Sichern. F&uuml;r dauerhaft gespeicherte Daten die Seite &uuml;ber Teilen &rarr; &bdquo;Zum Home-Bildschirm&ldquo; als App installieren.</li>
-              <li><strong>Wieder laden:</strong> Beim n&auml;chsten &bdquo;Songs laden&ldquo; wird die Datei automatisch eingelesen. Alternativ in der Liste &bdquo;Datei laden&ldquo;.</li>
-              <li>Ein <span class="text-amber-400">&bull;</span> am Button <strong>Markierungen</strong> hei&szlig;t: &Auml;nderungen sind noch nicht gesichert. Die Zuordnung h&auml;ngt am Dateinamen &ndash; wird ein Song umbenannt, geht seine Markierung verloren.</li>
+            <div class="info-tip">
+              <strong>Gut zu wissen:</strong> Die Songs müssen nach jedem Start der App neu über „Songs laden“ gewählt werden. Die Zahl im Song-Button zeigt, wie oft er gespielt wurde.
+            </div>
+          </section>
+
+          <section data-info-section="bedienung" class="hidden">
+            <h3>Obere Leiste</h3>
+            <ul>
+              <li><strong>Zoom −/+:</strong> Größe der Oberfläche.</li>
+              <li><strong>Suche:</strong> Treffer werden hervorgehoben. Nach einem Klick auf einen Song leert sich die Suche.</li>
+              <li><strong>Kopf ausblenden/einblenden:</strong> mehr Platz für die Songs.</li>
+              <li><strong>Vol:</strong> Lautstärke. <strong>Markierungen:</strong> Verwaltung. <strong>Info:</strong> diese Anleitung.</li>
+              <li><strong>vX.Y:</strong> Version und Änderungen. <strong>Reset:</strong> setzt alle Play-Zähler auf 0.</li>
             </ul>
-          </div>
-          <div>
-            <div class="font-semibold">Als App installieren</div>
-            <p><strong>iPad/iPhone (Safari):</strong> Teilen-Symbol antippen &rarr; &bdquo;Zum Home-Bildschirm&ldquo; &rarr; &bdquo;Hinzuf&uuml;gen&ldquo;. Danach starten, wie jede App, vom Home-Bildschirm &ndash; im Vollbild. <strong>Android/PC (Chrome):</strong> Men&uuml; &rarr; &bdquo;App installieren&ldquo;.</p>
-            <p class="mt-1">Die Songs m&uuml;ssen nach jedem Start der App neu &uuml;ber &bdquo;Songs laden&ldquo; gew&auml;hlt werden.</p>
-          </div>
-          <div>
-            <div class="font-semibold">Offline &amp; Version</div>
-            <p>Die App funktioniert nach dem ersten Laden auch ohne Internet. Der Button <strong>v&hellip;</strong> neben Info zeigt Version und &Auml;nderungen.</p>
-          </div>
+            <h3>Song-Buttons</h3>
+            <ul>
+              <li><strong>Zahl rechts:</strong> wie oft der Song gespielt wurde.</li>
+              <li><strong>Kräftige Farbe:</strong> selten gespielt. <strong>Blasse Farbe:</strong> oft gespielt. <strong>Heller Rahmen:</strong> am seltensten gespielt in der Spalte.</li>
+              <li><strong>Weißer Rahmen mit Equalizer:</strong> läuft gerade. Kleine Symbole (★ 👏 ⏳ 🔈) sind Markierungen.</li>
+            </ul>
+            <h3>Untere Leiste</h3>
+            <ul>
+              <li><strong>Timeout, Walk-On, Pause-Buttons:</strong> spielen die Songs aus <code>special_music</code>.</li>
+              <li><strong>Eigene Punkte / Gegnerpunkte:</strong> zufälliger Song aus den Eigene-Punkte-Spalten bzw. der Gegner-Spalte.</li>
+              <li><strong>★ Top-Stimmung / 👏 Mitklatschen:</strong> zufälliger Song aus der jeweiligen Markierung.</li>
+              <li><strong>So wählt der Zufall:</strong> Die am seltensten gespielten Songs kommen klar bevorzugt dran, die zuletzt gespielten werden übersprungen.</li>
+              <li><strong>Stop:</strong> blendet den Song aus.</li>
+            </ul>
+            <h3>Oben rechts: Now Playing</h3>
+            <p>Titel, Restzeit und ein Balken. Bei weniger als 10 Sekunden Restzeit wird die Anzeige rot.</p>
+          </section>
+
+          <section data-info-section="dateien" class="hidden">
+            <h3>Spalten ergeben sich aus dem Dateinamen</h3>
+            <ul>
+              <li><code>_HIT</code> oder <code>_ACE</code> → Ass/Angriff</li>
+              <li><code>_BLOCK</code> → Block</li>
+              <li><code>_OPP</code> → Gegner</li>
+              <li><code>_FUN</code> → Lustig</li>
+              <li>ohne Endung → verteilt auf Sonstiges 1 bis 3</li>
+            </ul>
+            <h3>Ordner <code>special_music</code></h3>
+            <ul>
+              <li><code>_TIMEOUT</code> → Button Timeout, <code>_WALKON</code> → Button Walk-On</li>
+              <li><code>_PAUSE1</code>, <code>_PAUSE2</code> … → je ein Pause-Button, automatisch angelegt</li>
+            </ul>
+            <div class="info-tip">
+              <strong>Wichtig:</strong> Play-Zähler und Markierungen hängen am Dateinamen. Wird ein Song umbenannt, beginnt er bei 0 und seine Markierungen sind weg. Formate: mp3, flac, wav, ogg.
+            </div>
+          </section>
+
+          <section data-info-section="markierungen" class="hidden">
+            <h3>Die vier Markierungen</h3>
+            <ul>
+              <li><strong>★ Top-Stimmung:</strong> die besten Stimmungslieder (Button unten).</li>
+              <li><strong>👏 Mitklatschen:</strong> Lieder zum Mitklatschen (Button unten).</li>
+              <li><strong>⏳ Langer Aufbau:</strong> der Drop kommt spät. Nur zum Merken, ohne Button.</li>
+              <li><strong>🔈 Zu leise:</strong> Lautstärke zu niedrig, muss nachbearbeitet werden. Nur zum Merken, ohne Button.</li>
+            </ul>
+            <h3>Markieren</h3>
+            <ul>
+              <li><strong>Schnell:</strong> Einen Song im Pult etwa eine Sekunde <strong>lange drücken</strong> und im Menü die Markierungen an- oder ausschalten.</li>
+              <li><strong>Verwalten:</strong> Button <strong>Markierungen</strong> öffnet die Liste mit Reitern für alle Songs (mit Suche und ▶ zum Anhören, das nicht mitzählt) und für jede Markierung. Dort kannst du Songs entfernen oder weiteren Markierungen zuordnen.</li>
+            </ul>
+            <h3>Sichern in 3 Schritten</h3>
+            <ol>
+              <li>In der Verwaltung auf <strong>Sichern</strong> tippen.</li>
+              <li>„In Dateien sichern“ wählen.</li>
+              <li>Den iCloud-Ordner <code>Songs laden</code> wählen und bei „Ersetzen?“ bestätigen.</li>
+            </ol>
+            <p>Beim nächsten „Songs laden“ wird die Datei <code>markierungen.json</code> automatisch eingelesen (bei mehreren Dateien die neueste). Der orange Punkt am Button „Markierungen“ heißt: noch nicht gesichert.</p>
+            <h3>Sicherheit</h3>
+            <ul>
+              <li>Jede Änderung wird automatisch im Browser gespeichert. Nach ein paar Änderungen erinnert ein kleiner Hinweis ans Sichern.</li>
+              <li>Vor „Alles zurücksetzen“ und vor dem Einlesen einer anderen Datei merkt sich die App den letzten Stand: <strong>Letzten Stand wiederherstellen</strong> holt ihn zurück.</li>
+              <li>Für dauerhafte Speicherung die Seite als App installieren (Reiter „Remote &amp; App“).</li>
+            </ul>
+          </section>
+
+          <section data-info-section="remote" class="hidden">
+            <h3>Remote: Handy als Fernbedienung</h3>
+            <ol>
+              <li>Am Pult Songs laden, <strong>Remote koppeln</strong> öffnen und „Offer erzeugen“.</li>
+              <li>Am Handy <strong>Remote öffnen</strong> (<code>remote.html</code>) und das Offer per QR-Scan oder als Text einfügen.</li>
+              <li>Das Handy erzeugt eine Answer. Sie am Pult einfügen oder scannen und „Answer anwenden“.</li>
+              <li>Bei „Verbunden“ zeigt das Handy die Songs (ohne Gegner) und steuert Play, Stop, Zufall, Spezial-Buttons und Lautstärke.</li>
+            </ol>
+            <p>Beide Geräte müssen im selben Netz oder Hotspot sein. Auf der Remote-Seite führt „← DJ-Pult“ zurück.</p>
+            <h3>Als App installieren</h3>
+            <ul>
+              <li><strong>iPad/iPhone (Safari):</strong> Teilen-Symbol → „Zum Home-Bildschirm“ → „Hinzufügen“. Danach startet sie wie jede App im Vollbild.</li>
+              <li><strong>Android/PC (Chrome):</strong> Menü → „App installieren“.</li>
+            </ul>
+            <h3>Offline &amp; Version</h3>
+            <p>Nach dem ersten Laden funktioniert die App auch ohne Internet. Der Button <strong>vX.Y</strong> in der oberen Leiste zeigt die Version und die Änderungen jeder Version.</p>
+          </section>
+
         </div>
       </div>
+
       <!-- Markierungen verwalten -->
       <div id="marks-panel" class="marks-panel hidden">
         <div class="marks-head">

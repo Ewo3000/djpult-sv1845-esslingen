@@ -1195,6 +1195,7 @@ window.addEventListener("pageshow", syncAfterReturn);
 document.addEventListener("DOMContentLoaded", () => {
   loadMarks();
   initMarksUI();
+  initInfoUI();
   audioEl = getAudioElement();
   if (audioEl) {
     audioEl.preload = "none";
@@ -1473,6 +1474,36 @@ function clearSearch() {
     searchEls.input.value = "";
   }
   renderCategories();
+}
+
+function updateBottomBarHeight() {
+  const bar = document.querySelector(".bottom-bar");
+  if (bar) document.documentElement.style.setProperty("--bottom-bar-h", `${bar.offsetHeight}px`);
+}
+
+function initInfoUI() {
+  const tabs = document.querySelectorAll("#info-tabs [data-info-tab]");
+  const sections = document.querySelectorAll("[data-info-section]");
+  const body = document.querySelector(".info-body");
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      tabs.forEach((other) => other.classList.toggle("active", other === tab));
+      sections.forEach((section) =>
+        section.classList.toggle("hidden", section.dataset.infoSection !== tab.dataset.infoTab)
+      );
+      if (body) body.scrollTop = 0;
+    });
+  });
+  const close = document.getElementById("info-close");
+  if (close) close.addEventListener("click", toggleInfo);
+
+  // Fenster sollen immer ueber der unteren Leiste enden, auch wenn sich deren Hoehe aendert
+  updateBottomBarHeight();
+  window.addEventListener("resize", updateBottomBarHeight);
+  const bar = document.querySelector(".bottom-bar");
+  if (bar && typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(updateBottomBarHeight).observe(bar);
+  }
 }
 
 function toggleInfo() {
