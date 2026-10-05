@@ -602,3 +602,9 @@ body.h-screen {
 .eq i {
   width: 2px;
 }
+
+/* Mehrere Schalter pro Zeile duerfen umbrechen */
+.marks-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}

@@ -220,12 +220,23 @@ function ensureAudioGraph() {
 const MARK_GROUPS = {
   top: { label: "Top-Stimmung", short: "Top", symbol: "★" },
   clap: { label: "Mitklatschen", short: "Klatschen", symbol: "👏" },
+  // Nur zum Merken (kein Zufall-Button):
+  slow: { label: "Langer Aufbau", short: "Aufbau", symbol: "\u23F3" }, // Drop kommt spaet
+  quiet: { label: "Zu leise", short: "Leise", symbol: "\uD83D\uDD08" }, // Lautstaerke nacharbeiten
 };
 const MARKS_KEY = "songMarks";
 const MARKS_FILENAME = "markierungen.json";
 const MARKS_FILE_PATTERN = /^markierungen.*\.json$/i; // auch "markierungen 2.json" usw.
 const LONG_PRESS_MS = 600;
-let marks = { top: new Set(), clap: new Set() };
+function emptyMarks() {
+  const result = {};
+  Object.keys(MARK_GROUPS).forEach((group) => {
+    result[group] = new Set();
+  });
+  return result;
+}
+
+let marks = emptyMarks();
 let marksDirty = false;
 let marksTab = "all";
 let marksSearch = "";
@@ -235,8 +246,9 @@ function loadMarks() {
     const raw = localStorage.getItem(MARKS_KEY);
     if (!raw) return;
     const data = JSON.parse(raw);
-    marks.top = new Set(Array.isArray(data.top) ? data.top : []);
-    marks.clap = new Set(Array.isArray(data.clap) ? data.clap : []);
+    Object.keys(MARK_GROUPS).forEach((group) => {
+      marks[group] = new Set(Array.isArray(data[group]) ? data[group] : []);
+    });
     marksDirty = !!data.dirty;
   } catch (e) {
     console.warn("Konnte Markierungen nicht laden:", e);
@@ -245,10 +257,11 @@ function loadMarks() {
 
 function saveMarks() {
   try {
-    localStorage.setItem(
-      MARKS_KEY,
-      JSON.stringify({ top: [...marks.top], clap: [...marks.clap], dirty: marksDirty })
-    );
+    const stored = { dirty: marksDirty };
+    Object.keys(MARK_GROUPS).forEach((group) => {
+      stored[group] = [...marks[group]];
+    });
+    localStorage.setItem(MARKS_KEY, JSON.stringify(stored));
   } catch (e) {
     console.warn("Konnte Markierungen nicht speichern:", e);
   }
@@ -256,25 +269,21 @@ function saveMarks() {
 
 function marksToJson() {
   const sorted = (set) => [...set].sort((a, b) => a.localeCompare(b, "de"));
-  return JSON.stringify(
-    { version: 1, saved: new Date().toISOString(), top: sorted(marks.top), clap: sorted(marks.clap) },
-    null,
-    2
-  );
+  const out = { version: 1, saved: new Date().toISOString() };
+  Object.keys(MARK_GROUPS).forEach((group) => {
+    out[group] = sorted(marks[group]);
+  });
+  return JSON.stringify(out, null, 2);
 }
 
 function applyMarksData(data, mode) {
   if (!data || typeof data !== "object") throw new Error("Ungueltige Markierungsdatei");
   const clean = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === "string") : []);
-  const top = clean(data.top);
-  const clap = clean(data.clap);
-  if (mode === "merge") {
-    top.forEach((id) => marks.top.add(id));
-    clap.forEach((id) => marks.clap.add(id));
-  } else {
-    marks.top = new Set(top);
-    marks.clap = new Set(clap);
-  }
+  Object.keys(MARK_GROUPS).forEach((group) => {
+    const ids = clean(data[group]);
+    if (mode === "merge") ids.forEach((id) => marks[group].add(id));
+    else marks[group] = new Set(ids);
+  });
 }
 
 function getAllSongs() {
@@ -492,7 +501,7 @@ function renderMarksPanel() {
 
     const controls = document.createElement("span");
     controls.className = "marks-controls";
-    controls.append(makeMarkToggle("top", row.id), makeMarkToggle("clap", row.id));
+    Object.keys(MARK_GROUPS).forEach((group) => controls.append(makeMarkToggle(group, row.id)));
     if (marksTab !== "all") {
       // In den Gruppen-Reitern zusaetzlich: Song aus dieser Gruppe entfernen
       const remove = document.createElement("button");
@@ -545,6 +554,13 @@ function afterMarksChangedBulk() {
   renderMarksPanel();
 }
 
+function markSummary() {
+  const parts = Object.entries(MARK_GROUPS)
+    .filter(([group]) => marks[group].size > 0)
+    .map(([group, def]) => `${marks[group].size} ${def.label}`);
+  return parts.length ? parts.join(", ") : "keine";
+}
+
 function importMarksFromText(text, source, extraInfo = "") {
   let data;
   try {
@@ -559,7 +575,7 @@ function importMarksFromText(text, source, extraInfo = "") {
   if (!merged) marksDirty = false;
   afterMarksChangedBulk();
   showToast(
-    `Markierungen ${source}: ${marks.top.size} Top-Stimmung, ${marks.clap.size} Mitklatschen` +
+    `Markierungen ${source}: ${markSummary()}` +
       extraInfo +
       (merged ? " (mit deinen ungesicherten Änderungen zusammengeführt)" : ""),
     "info"
@@ -608,9 +624,9 @@ function loadMarksFromFile(file) {
 }
 
 function resetMarks() {
-  if (!marks.top.size && !marks.clap.size) return;
-  if (!confirm("Alle Markierungen (Top-Stimmung und Mitklatschen) löschen?")) return;
-  marks = { top: new Set(), clap: new Set() };
+  if (!Object.values(marks).some((set) => set.size > 0)) return;
+  if (!confirm("Alle Markierungen löschen?")) return;
+  marks = emptyMarks();
   marksDirty = true;
   afterMarksChangedBulk();
 }

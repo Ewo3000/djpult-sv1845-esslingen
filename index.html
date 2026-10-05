@@ -98,9 +98,10 @@
             <p class="mt-1">Beide Ger&auml;te m&uuml;ssen im selben Netz oder Hotspot sein.</p>
           </div>
           <div>
-            <div class="font-semibold">Markierungen: Top-Stimmung und Mitklatschen</div>
+            <div class="font-semibold">Markierungen</div>
             <ul class="list-disc list-inside space-y-1">
               <li><strong>Schnell markieren:</strong> Einen Song im Pult <strong>lange gedr&uuml;ckt halten</strong>. Es &ouml;ffnet sich ein Men&uuml; mit &bdquo;Top-Stimmung&ldquo; und &bdquo;Mitklatschen&ldquo;. Markierte Songs zeigen ein kleines Symbol im Button.</li>
+              <li><strong>Zwei weitere Markierungen (ohne Button, nur zum Merken):</strong> &#9203; <strong>Langer Aufbau</strong> &ndash; der Drop kommt erst sp&auml;t, das Lied braucht Vorlauf. &#128264; <strong>Zu leise</strong> &ndash; Lautst&auml;rke zu den anderen Songs zu niedrig, muss nachbearbeitet werden. Im Reiter der Verwaltung siehst du jeweils die ganze Liste.</li>
               <li><strong>Verwalten:</strong> Der Button <strong>Markierungen</strong> oben &ouml;ffnet die Liste. Reiter &bdquo;Alle Songs&ldquo; (mit Suche und &#9654; zum kurzen Anh&ouml;ren, das nicht mitz&auml;hlt), &bdquo;Top-Stimmung&ldquo; und &bdquo;Mitklatschen&ldquo;. In den Gruppen siehst du bei jedem Song beide Schalter (Top und Klatschen) und kannst ihn mit &bdquo;Entfernen&ldquo; herausnehmen oder auch der anderen Gruppe zuordnen.</li>
               <li><strong>Sichern:</strong> In der Liste auf <strong>Sichern</strong> tippen &rarr; &bdquo;In Dateien sichern&ldquo; &rarr; den Ordner <code>Songs laden</code> (neben <code>music</code> und <code>special_music</code>) in iCloud w&auml;hlen &rarr; Gespeichert wird <code>markierungen.json</code>. iPadOS legt bei jedem Sichern eine neue Datei an (<code>markierungen 2.json</code> &hellip;); beim Laden nimmt die App automatisch die neueste. &Auml;ltere Dateien kannst du in der Dateien-App l&ouml;schen.</li>
               <li><strong>Wieder laden:</strong> Beim n&auml;chsten &bdquo;Songs laden&ldquo; wird die Datei automatisch eingelesen. Alternativ in der Liste &bdquo;Datei laden&ldquo;.</li>
@@ -129,6 +130,8 @@
           <button data-tab="all">Alle Songs</button>
           <button data-tab="top">Top-Stimmung</button>
           <button data-tab="clap">Mitklatschen</button>
+          <button data-tab="slow">Langer Aufbau</button>
+          <button data-tab="quiet">Zu leise</button>
         </div>
         <input id="marks-search" type="search" placeholder="Song suchen" />
         <div id="marks-list" class="marks-list"></div>
