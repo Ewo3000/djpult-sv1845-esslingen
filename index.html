@@ -40,16 +40,16 @@
         <div id="now-playing-eta" class="text-xs text-gray-300">--:--</div>
       </div>
       <!-- Info / Release Notes -->
-      <div class="fixed top-2 right-[28rem] bg-gray-800 text-white text-xs px-3 py-2 rounded shadow flex items-center space-x-2">
+      <div class="fixed top-2 right-[28rem] bg-gray-800 text-white text-xs px-3 py-2 rounded-xl shadow flex items-center space-x-2">
         <span class="text-xs">Vol</span>
         <input type="range" id="volume" min="0" max="1" step="0.05" value="1.0"
           class="horizontal-slider w-32"
           oninput="setVolume(this.value)">
       </div>
-      <button id="info-toggle" onclick="toggleInfo()" class="fixed top-2 right-96 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow hover:bg-gray-700">
+      <button id="info-toggle" onclick="toggleInfo()" class="fixed top-2 right-96 bg-gray-800 text-white text-xs px-3 py-2 rounded-xl shadow hover:bg-gray-700">
         Info
       </button>
-      <button id="version-toggle" onclick="toggleVersion()" class="fixed top-2 right-80 bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded shadow hover:bg-gray-700">
+      <button id="version-toggle" onclick="toggleVersion()" class="fixed top-2 right-80 bg-gray-800 text-gray-300 text-xs px-3 py-2 rounded-xl shadow hover:bg-gray-700">
         Ver.
       </button>
       <div id="version-panel" class="fixed top-10 right-10 bg-gray-800 text-white text-xs px-3 py-2 rounded shadow hidden z-50 w-72 max-h-[calc(100vh-13rem)] overflow-y-auto">
@@ -118,7 +118,7 @@
         </div>
       </div>
       <!-- Zoom Controls -->
-      <div class="fixed top-2 left-2 bg-gray-800 text-white text-sm px-3 py-2 rounded-md shadow flex items-center space-x-2">
+      <div class="fixed top-2 left-2 bg-gray-800 text-white text-sm px-3 py-2 rounded-xl shadow flex items-center space-x-2">
         <span>Zoom</span>
         <button id="zoom-out" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">-</button>
         <span id="zoom-level" class="w-10 text-center">100%</span>
@@ -187,22 +187,22 @@
   <div class="w-full grid grid-cols-6 justify-between gap-4 bg-gray-800 p-4 rounded-lg mt-2 fixed bottom-0 left-0 z-50">
       <div class="grid grid-cols-1 mt-4 gap-4 w-full">
         <button id="btn-timeout"
-          class="bg-yellow-500 rounded-lg hover:bg-yellow-700 text-xl px-3 py-3">
+          class="bg-[#c99a12] hover:bg-[#b3880f] text-[#1f1300] rounded-xl text-xl px-3 py-3 shadow-md">
           Timeout
         </button>
       <button id="btn-walkon"
-        class="bg-blue-500 rounded-lg hover:bg-blue-700 text-xl px-3 py-3">
+        class="bg-[#2a62b8] hover:bg-[#2455a1] rounded-xl text-xl px-3 py-3 shadow-md">
         Walk-On
       </button>
     </div>
     <div id="pause-buttons" class="grid grid-cols-2 mt-4 gap-3 w-full col-span-2"></div>
-    <button onclick="playRandomTrack()" class="px-7 py-7 bg-indigo-600 rounded-lg hover:bg-indigo-800 text-lg">
+    <button onclick="playRandomTrack()" class="px-7 py-7 bg-[#3b3f8f] rounded-xl hover:bg-[#32367d] text-lg shadow-md">
       Zufall (eigene Punkte)
     </button>
-    <button onclick="playRandomOpponentTrack()" class="px-7 py-7 bg-indigo-500 rounded-lg hover:bg-indigo-700 text-lg">
+    <button onclick="playRandomOpponentTrack()" class="px-7 py-7 bg-[#4a4fa8] rounded-xl hover:bg-[#41459a] text-lg shadow-md">
       Zufall (Gegnerpunkte)
     </button>
-    <button onclick="stopAudio()" class="px-7 py-7 bg-red-600 rounded-lg hover:bg-red-800 text-lg">
+    <button onclick="stopAudio()" class="px-7 py-7 bg-[#c93232] rounded-xl hover:bg-[#b02a2a] text-lg shadow-md">
       Stop
     </button>
   </div>
