@@ -1199,7 +1199,7 @@ function renderPauseButtons() {
     const base = track.display || `Pause ${track.number || idx + 1}`;
     const label = `Pause: ${base}`;
     const btn = document.createElement("button");
-    btn.className = "pause-button bg-[#2b3445] hover:bg-[#364156] rounded-xl text-lg px-3 py-3 w-full";
+    btn.className = "pause-button bg-[#2b3445] hover:bg-[#364156] rounded-xl text-base leading-tight px-2 py-2 w-full";
     btn.textContent = label;
     btn.addEventListener("click", () => {
       playAudio(track.url, label);
@@ -1362,6 +1362,35 @@ function playRandomTrack() {
     }
   }
   playAudio(chosen.song.url, chosen.song.display, chosen.category, chosen.song.id);
+}
+
+// Zufaelliger Song aus einer Markierungs-Gruppe ("top" oder "clap");
+// selten gespielte Songs werden wie beim normalen Zufall bevorzugt.
+function playRandomMarked(group) {
+  const def = MARK_GROUPS[group];
+  if (!def) return;
+  const pool = getAllSongs()
+    .filter((song) => marks[group].has(song.id))
+    .map((song) => {
+      const count = songPlayCounts[song.id] || 0;
+      return { song, weight: Math.max(0.01, 1 / Math.pow(1 + count, 3)) };
+    });
+  if (pool.length === 0) {
+    showToast(`Noch keine geladenen Songs in „${def.label}“ markiert.`);
+    return;
+  }
+  const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0);
+  const r = Math.random() * totalWeight;
+  let acc = 0;
+  let chosen = pool[pool.length - 1];
+  for (const item of pool) {
+    acc += item.weight;
+    if (r <= acc) {
+      chosen = item;
+      break;
+    }
+  }
+  playAudio(chosen.song.url, chosen.song.display, chosen.song.category, chosen.song.id);
 }
 
 function playRandomOpponentTrack() {

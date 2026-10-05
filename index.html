@@ -69,6 +69,7 @@
             <ul class="list-disc list-inside space-y-1">
               <li><strong>Timeout</strong> / <strong>Walk-On</strong>: spielen die Songs aus <code>special_music</code> (<code>_TIMEOUT</code>, <code>_WALKON</code>).</li>
               <li><strong>Pause-Buttons</strong>: einer pro Datei <code>_PAUSE1</code>, <code>_PAUSE2</code> &hellip;, automatisch angelegt.</li>
+              <li><strong>&#9733; Top-Stimmung / &#128079; Mitklatschen (zuf&auml;llig)</strong>: spielen einen zuf&auml;lligen Song aus der jeweiligen Markierungs-Gruppe (siehe unten), seltene Songs werden bevorzugt.</li>
               <li><strong>Eigene Punkte (zuf&auml;llig)</strong> &ndash; Stimmungslieder: w&auml;hlt einen Song aus Ass/Angriff, Block und den gr&uuml;nen Spalten. Selten gespielte Songs werden stark bevorzugt.</li>
               <li><strong>Gegnerpunkte (zuf&auml;llig)</strong> &ndash; Durchatmen: gleiches Prinzip, aber nur aus Gegner.</li>
               <li><strong>Stop</strong>: blendet den Song in ca. 1 Sekunde aus.</li>
@@ -219,29 +220,39 @@
   </div>
 
   <!-- Untere Leiste mit Spezial-Buttons -->
-  <div class="w-full grid grid-cols-6 justify-between gap-4 bg-gray-800 p-4 rounded-lg mt-2 fixed bottom-0 left-0 z-50">
-      <div class="grid grid-cols-1 mt-4 gap-4 w-full">
-        <button id="btn-timeout"
-          class="bg-[#c99a12] hover:bg-[#b3880f] text-[#1f1300] rounded-xl text-xl px-3 py-3 shadow-md">
-          Timeout
-        </button>
+  <div class="bottom-bar w-full grid gap-3 bg-gray-800 p-4 rounded-lg mt-2 fixed bottom-0 left-0 z-50">
+    <div class="grid grid-cols-1 gap-3 w-full">
+      <button id="btn-timeout"
+        class="bg-[#c99a12] hover:bg-[#b3880f] text-[#1f1300] rounded-xl text-lg px-2 py-2 shadow-md">
+        Timeout
+      </button>
       <button id="btn-walkon"
-        class="bg-[#2a62b8] hover:bg-[#2455a1] rounded-xl text-xl px-3 py-3 shadow-md">
+        class="bg-[#2a62b8] hover:bg-[#2455a1] rounded-xl text-lg px-2 py-2 shadow-md">
         Walk-On
       </button>
     </div>
-    <div id="pause-buttons" class="grid grid-cols-2 mt-4 gap-3 w-full col-span-2"></div>
-    <button onclick="playRandomTrack()" class="px-4 py-5 bg-[#3b3f8f] rounded-xl hover:bg-[#32367d] shadow-md flex flex-col items-center justify-center leading-tight">
+    <div id="pause-buttons" class="grid grid-cols-2 gap-3 w-full"></div>
+    <div class="grid grid-cols-1 gap-3 w-full">
+      <button onclick="playRandomMarked('top')" class="bg-[#b45309] hover:bg-[#9a4608] rounded-xl px-2 py-2 shadow-md flex flex-col items-center justify-center leading-tight" title="Zufälliger Song aus Top-Stimmung">
+        <span class="text-base font-semibold">&#9733; Top-Stimmung</span>
+        <span class="text-xs text-amber-100">(zufällig)</span>
+      </button>
+      <button onclick="playRandomMarked('clap')" class="bg-[#0f766e] hover:bg-[#0c625b] rounded-xl px-2 py-2 shadow-md flex flex-col items-center justify-center leading-tight" title="Zufälliger Song aus Mitklatschen">
+        <span class="text-base font-semibold">&#128079; Mitklatschen</span>
+        <span class="text-xs text-teal-100">(zufällig)</span>
+      </button>
+    </div>
+    <button onclick="playRandomTrack()" class="px-3 py-5 bg-[#3b3f8f] rounded-xl hover:bg-[#32367d] shadow-md flex flex-col items-center justify-center leading-tight">
       <span class="text-xl font-semibold">Eigene Punkte</span>
       <span class="text-sm text-indigo-200">(zufällig)</span>
       <span class="text-sm text-indigo-100 mt-2">Stimmungslieder</span>
     </button>
-    <button onclick="playRandomOpponentTrack()" class="px-4 py-5 bg-[#4a4fa8] rounded-xl hover:bg-[#41459a] shadow-md flex flex-col items-center justify-center leading-tight">
+    <button onclick="playRandomOpponentTrack()" class="px-3 py-5 bg-[#4a4fa8] rounded-xl hover:bg-[#41459a] shadow-md flex flex-col items-center justify-center leading-tight">
       <span class="text-xl font-semibold">Gegnerpunkte</span>
       <span class="text-sm text-indigo-200">(zufällig)</span>
       <span class="text-sm text-indigo-100 mt-2">Durchatmen</span>
     </button>
-    <button onclick="stopAudio()" class="px-7 py-7 bg-[#c93232] rounded-xl hover:bg-[#b02a2a] text-lg shadow-md">
+    <button onclick="stopAudio()" class="px-4 py-7 bg-[#c93232] rounded-xl hover:bg-[#b02a2a] text-lg shadow-md">
       Stop
     </button>
   </div>
