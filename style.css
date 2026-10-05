@@ -313,3 +313,28 @@ body.h-screen {
     height: 70%;
   }
 }
+
+/* ---- Hinweis-Meldung ---- */
+.toast {
+  position: fixed;
+  top: 4rem;
+  left: 50%;
+  z-index: 60;
+  max-width: min(32rem, 90vw);
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  color: #fff;
+  text-align: center;
+  background: #991b1b;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -6px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.toast-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
