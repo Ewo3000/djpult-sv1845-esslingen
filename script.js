@@ -458,6 +458,7 @@ document.addEventListener("DOMContentLoaded", () => {
     block: document.getElementById("header-block"),
     toggle: document.getElementById("toggle-header"),
   };
+  initVersionInfo();
   infoEls = {
     panel: document.getElementById("info-panel"),
     toggle: document.getElementById("info-toggle"),
@@ -615,7 +616,6 @@ function renderSingleCategory(key) {
 
     btn.textContent = `${song.icon} ${song.display}`;
     btn.addEventListener("click", () => {
-      console.log("Song click", { id: song.id, category: song.category });
       playAudio(song.url, song.display, song.category, song.id);
       clearSearch();
     });
@@ -661,7 +661,6 @@ function initZoomControls() {
 function resetPlayCounts() {
   songPlayCounts = {};
   savePlayCounts();
-  console.log("Reset play counts");
   renderCategories();
 }
 
@@ -781,6 +780,55 @@ function toggleInfo() {
   const panel = infoEls.panel || document.getElementById("info-panel");
   if (!panel) return;
   panel.classList.toggle("hidden");
+}
+
+function toggleVersion() {
+  const panel = document.getElementById("version-panel");
+  if (!panel) return;
+  panel.classList.toggle("hidden");
+}
+
+function renderChangelog() {
+  const box = document.getElementById("version-changelog");
+  if (!box || typeof APP_CHANGELOG === "undefined") return;
+  box.innerHTML = "";
+  APP_CHANGELOG.forEach((entry, index) => {
+    const details = document.createElement("details");
+    details.open = index === 0;
+    const summary = document.createElement("summary");
+    summary.className = "cursor-pointer font-semibold";
+    summary.textContent = `v${entry.version} (${entry.date})`;
+    const list = document.createElement("ul");
+    list.className = "list-disc list-inside space-y-1 mt-1";
+    entry.changes.forEach((text) => {
+      const li = document.createElement("li");
+      li.textContent = text;
+      list.appendChild(li);
+    });
+    details.append(summary, list);
+    box.appendChild(details);
+  });
+}
+
+function initVersionInfo() {
+  const version = typeof APP_VERSION !== "undefined" ? APP_VERSION : "?";
+  const build = typeof APP_BUILD !== "undefined" ? APP_BUILD : "?";
+  const set = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  set("version-toggle", `v${version}`);
+  set("version-number", version);
+  set("version-build", build);
+  renderChangelog();
+  if ("caches" in window) {
+    caches
+      .keys()
+      .then((keys) => set("version-cache", keys.join(", ") || "-"))
+      .catch(() => set("version-cache", "-"));
+  } else {
+    set("version-cache", "-");
+  }
 }
 
 function playRandomTrack() {
