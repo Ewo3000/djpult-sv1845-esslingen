@@ -228,12 +228,20 @@ function buildSongButton(song, cat, range) {
 
   const count = songPlayCounts[song.id] || 0;
   if (cat.baseHSL) {
-    // Heatmap: haeufiger gespielte Songs werden heller
-    const intensity = range.max !== range.min ? (count - range.min) / (range.max - range.min) : 0;
+    // Heatmap: selten gespielte Songs leuchten kraeftig, oft gespielte werden blasser.
+    // Songs mit dem niedrigsten Zaehler der Spalte bekommen zusaetzlich einen hellen Rahmen.
+    const spread = range.max - range.min;
+    const used = spread > 0 ? (count - range.min) / spread : 0; // 0 = selten, 1 = am haeufigsten
+    const fresh = 1 - used;
     const [h, s, l] = cat.baseHSL;
-    btn.style.backgroundColor = `hsl(${h}, ${Math.round(s * 0.55)}%, ${20 + intensity * 9}%)`;
-    btn.style.borderColor = `hsl(${h}, ${Math.round(s * 0.5)}%, ${30 + intensity * 8}%)`;
+    btn.style.backgroundColor = `hsl(${h}, ${Math.round(15 + fresh * (s * 0.9 - 15))}%, ${Math.round(17 + fresh * 25)}%)`;
+    btn.style.borderColor = `hsl(${h}, ${Math.round(15 + fresh * s * 0.8)}%, ${Math.round(24 + fresh * 32)}%)`;
     btn.style.borderLeftColor = `hsl(${h}, ${s}%, ${l}%)`;
+    if (spread > 0 && count === range.min) {
+      btn.style.boxShadow = `0 0 0 1px hsl(${h}, 83%, 65%), 0 2px 4px rgba(0, 0, 0, 0.3)`;
+    } else {
+      btn.style.opacity = (0.55 + fresh * 0.45).toFixed(2);
+    }
   }
 
   if (matchesSearch(song)) {

@@ -338,3 +338,9 @@ body.h-screen {
   opacity: 1;
   transform: translate(-50%, 0);
 }
+
+/* Treffer und laufender Song bleiben immer voll sichtbar, auch wenn der Song oft gespielt wurde */
+.song-button.search-hit,
+.song-button.is-playing {
+  opacity: 1 !important;
+}
