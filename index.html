@@ -52,37 +52,63 @@
       <button id="version-toggle" onclick="toggleVersion()" class="fixed top-2 right-80 bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded shadow hover:bg-gray-700">
         Ver.
       </button>
-      <div id="version-panel" class="fixed top-10 right-10 bg-gray-800 text-white text-xs px-3 py-2 rounded shadow hidden z-50">
-        <div>Version <strong id="version-number">-</strong></div>
-        <div class="text-gray-300">Stand: <span id="version-build">-</span></div>
-        <div class="text-gray-300">Cache: <span id="version-cache">-</span></div>
+      <div id="version-panel" class="fixed top-10 right-10 bg-gray-800 text-white text-xs px-3 py-2 rounded shadow hidden z-50 w-72 max-h-[calc(100vh-13rem)] overflow-y-auto">
+        <div>Version <strong id="version-number">-</strong> <span class="text-gray-300">(<span id="version-build">-</span>)</span></div>
+        <div class="text-gray-400">Cache: <span id="version-cache">-</span></div>
+        <div class="font-semibold mt-2">Änderungen</div>
+        <div id="version-changelog" class="space-y-2 mt-1"></div>
       </div>
-      <div id="info-panel" class="fixed top-10 right-10 bg-gray-800 text-white text-xs px-3 py-2 rounded shadow max-w-sm hidden info-panel z-50">
-        <div class="space-y-2">
+      <div id="info-panel" class="fixed top-10 right-10 bg-gray-800 text-white text-xs px-3 py-2 rounded shadow w-96 max-w-[90vw] max-h-[calc(100vh-13rem)] overflow-y-auto hidden info-panel z-50">
+        <div class="space-y-3">
           <div>
-            <div class="font-semibold">Funktionen</div>
-            <ul class="list-disc list-inside space-y-1">
-              <li>Suche: Treffer werden hervorgehoben und die Suche leert sich nach Klick auf einen Song.</li>
-              <li>Zufall: gewichtet selten gespielte Titel h&ouml;her; Gegner-Zufall nutzt nur Kategorie Gegner.</li>
-              <li>Play-Counter &amp; Heatmap: Badges, Gewichtung pro Kategorie (au&szlig;er Spa&szlig;/Specials), lokal gespeichert.</li>
-              <li>3x Sonstiges-Spalten: ungetaggte Tracks werden verteilt.</li>
-              <li>Reset-Button: setzt alle Play-Counter zur&uuml;ck.</li>
-              <li>Now Playing: Titel + Restlaufzeit mit Warnblinken bei &lt;10s.</li>
-              <li><strong>Tagging</strong>: `_HIT`/`_ACE` &rarr; Ass/Angriff, `_BLOCK` &rarr; Block, `_OPP` &rarr; Gegner, `_FUN` &rarr; Lustig. Ohne Tag &rarr; Sonstiges/Noch mehr.</li>
-              <li><strong>Spezial-Tracks</strong> (`special_music/`): `_TIMEOUT`, `_WALKON`, `_PAUSE1/2/3...` f&uuml;r Spezial-Buttons; Pausen werden dynamisch gelistet.</li>
-              <li><strong>Ablage</strong>: Normale Musikdateien in `static/music/` (oder geladenes Verzeichnis); Spezialtracks in `static/special_music/`.</li>
-              <li><strong>Remote-Overlay</strong>: Pairing als Overlay oben, Copy/Paste-only, ein-/ausklappbar.</li>
+            <div class="font-semibold">Songs laden</div>
+            <p>&bdquo;Songs laden&ldquo; &ouml;ffnet die Dateiauswahl. W&auml;hle den Ordner mit der Musik (Unterordner <code>music</code> und <code>special_music</code>). Die Songs werden nur auf diesem Ger&auml;t gelesen, nichts wird hochgeladen. Nach dem Laden klappt der Kopfbereich automatisch ein.</p>
+          </div>
+          <div>
+            <div class="font-semibold">Kategorien</div>
+            <p>Jede Spalte ist eine Kategorie. Ein Tipp auf einen Song startet ihn sofort; l&auml;uft schon ein Song, wird er ersetzt. Die Zuordnung ergibt sich aus dem Dateinamen:</p>
+            <ul class="list-disc list-inside space-y-1 mt-1">
+              <li><code>_HIT</code> / <code>_ACE</code> &rarr; Ass/Angriff</li>
+              <li><code>_BLOCK</code> &rarr; Block</li>
+              <li><code>_OPP</code> &rarr; Gegner</li>
+              <li><code>_FUN</code> &rarr; Lustig</li>
+              <li>ohne Endung &rarr; auf die drei gr&uuml;nen Spalten verteilt</li>
             </ul>
           </div>
           <div>
-            <div class="font-semibold">Aktuelle Änderungen</div>
+            <div class="font-semibold">Untere Leiste</div>
             <ul class="list-disc list-inside space-y-1">
-              <li>Suche mit Auto-Clear &amp; Highlight.</li>
-              <li>Gewichtete Zuf&auml;lle (Standard + Gegner).</li>
-              <li>Header einklappbar f&uuml;r mehr Platz.</li>
-              <li>Pause-Buttons dynamisch aus `_PAUSE`-Tracks.</li>
-              <li>Scroll-Anpassungen: Kategorien scrollen getrennt, globales Scroll deaktiviert.</li>
+              <li><strong>Timeout</strong> / <strong>Walk-On</strong>: spielen die Songs aus <code>special_music</code> (<code>_TIMEOUT</code>, <code>_WALKON</code>).</li>
+              <li><strong>Pause-Buttons</strong>: einer pro Datei <code>_PAUSE1</code>, <code>_PAUSE2</code> &hellip;, automatisch angelegt.</li>
+              <li><strong>Zufall (eigene Punkte)</strong>: w&auml;hlt einen Song aus Ass/Angriff, Block und den gr&uuml;nen Spalten. Selten gespielte Songs werden stark bevorzugt.</li>
+              <li><strong>Zufall (Gegnerpunkte)</strong>: gleiches Prinzip, aber nur aus Gegner.</li>
+              <li><strong>Stop</strong>: blendet den Song in ca. 1 Sekunde aus.</li>
             </ul>
+          </div>
+          <div>
+            <div class="font-semibold">Anzeige &amp; Werkzeuge</div>
+            <ul class="list-disc list-inside space-y-1">
+              <li><strong>Now Playing</strong> (oben rechts): Titel und Restzeit; bei weniger als 10 Sekunden blinkt die Anzeige.</li>
+              <li><strong>Vol</strong>: Lautst&auml;rke-Regler.</li>
+              <li><strong>Suche</strong>: Treffer werden hervorgehoben und die Trefferzahl angezeigt. Nach einem Klick auf einen Song leert sich die Suche.</li>
+              <li><strong>Play-Z&auml;hler</strong>: Die Zahl rechts oben am Button zeigt, wie oft der Song gespielt wurde. H&auml;ufiger gespielte Songs sind heller. Die Z&auml;hler bleiben auf dem Ger&auml;t gespeichert; <strong>Reset</strong> setzt alle auf 0.</li>
+              <li><strong>Zoom</strong> &plusmn; ver&auml;ndert die Gr&ouml;&szlig;e der Buttons.</li>
+              <li><strong>Kopf ausblenden</strong> gibt mehr Platz f&uuml;r die Songs.</li>
+            </ul>
+          </div>
+          <div>
+            <div class="font-semibold">Remote (Handy als Fernbedienung)</div>
+            <ol class="list-decimal list-inside space-y-1">
+              <li>Am Pult Songs laden, dann <strong>Remote koppeln</strong> &ouml;ffnen und &bdquo;Offer erzeugen&ldquo;.</li>
+              <li>Am Handy <strong>Remote &ouml;ffnen</strong> (<code>remote.html</code>), Offer per QR-Scan oder Text einf&uuml;gen.</li>
+              <li>Das Handy erzeugt eine Answer; sie am Pult einf&uuml;gen oder scannen und &bdquo;Answer anwenden&ldquo;.</li>
+              <li>Status &bdquo;Verbunden&ldquo; &ndash; das Handy zeigt die Songs (ohne Gegner) und steuert Play, Stop, Zufall, Spezial-Buttons und Lautst&auml;rke.</li>
+            </ol>
+            <p class="mt-1">Beide Ger&auml;te m&uuml;ssen im selben Netz oder Hotspot sein.</p>
+          </div>
+          <div>
+            <div class="font-semibold">Offline &amp; Version</div>
+            <p>Die App funktioniert nach dem ersten Laden auch ohne Internet. Der Button <strong>v&hellip;</strong> neben Info zeigt Version und &Auml;nderungen.</p>
           </div>
         </div>
       </div>

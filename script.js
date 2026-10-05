@@ -788,6 +788,28 @@ function toggleVersion() {
   panel.classList.toggle("hidden");
 }
 
+function renderChangelog() {
+  const box = document.getElementById("version-changelog");
+  if (!box || typeof APP_CHANGELOG === "undefined") return;
+  box.innerHTML = "";
+  APP_CHANGELOG.forEach((entry, index) => {
+    const details = document.createElement("details");
+    details.open = index === 0;
+    const summary = document.createElement("summary");
+    summary.className = "cursor-pointer font-semibold";
+    summary.textContent = `v${entry.version} (${entry.date})`;
+    const list = document.createElement("ul");
+    list.className = "list-disc list-inside space-y-1 mt-1";
+    entry.changes.forEach((text) => {
+      const li = document.createElement("li");
+      li.textContent = text;
+      list.appendChild(li);
+    });
+    details.append(summary, list);
+    box.appendChild(details);
+  });
+}
+
 function initVersionInfo() {
   const version = typeof APP_VERSION !== "undefined" ? APP_VERSION : "?";
   const build = typeof APP_BUILD !== "undefined" ? APP_BUILD : "?";
@@ -798,6 +820,7 @@ function initVersionInfo() {
   set("version-toggle", `v${version}`);
   set("version-number", version);
   set("version-build", build);
+  renderChangelog();
   if ("caches" in window) {
     caches
       .keys()
