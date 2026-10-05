@@ -458,6 +458,7 @@ document.addEventListener("DOMContentLoaded", () => {
     block: document.getElementById("header-block"),
     toggle: document.getElementById("toggle-header"),
   };
+  initVersionInfo();
   infoEls = {
     panel: document.getElementById("info-panel"),
     toggle: document.getElementById("info-toggle"),
@@ -781,6 +782,32 @@ function toggleInfo() {
   const panel = infoEls.panel || document.getElementById("info-panel");
   if (!panel) return;
   panel.classList.toggle("hidden");
+}
+
+function toggleVersion() {
+  const panel = document.getElementById("version-panel");
+  if (!panel) return;
+  panel.classList.toggle("hidden");
+}
+
+function initVersionInfo() {
+  const version = typeof APP_VERSION !== "undefined" ? APP_VERSION : "?";
+  const build = typeof APP_BUILD !== "undefined" ? APP_BUILD : "?";
+  const set = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  set("version-toggle", `v${version}`);
+  set("version-number", version);
+  set("version-build", build);
+  if ("caches" in window) {
+    caches
+      .keys()
+      .then((keys) => set("version-cache", keys.join(", ") || "-"))
+      .catch(() => set("version-cache", "-"));
+  } else {
+    set("version-cache", "-");
+  }
 }
 
 function playRandomTrack() {

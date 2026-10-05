@@ -1,10 +1,12 @@
 // Cached nur die App-Dateien. Musik kommt per Dateiauswahl (Blob-URLs) und wird nie gecacht.
-const CACHE_NAME = "djpult-cache-v3";
+importScripts("version.js");
+const CACHE_NAME = `djpult-${APP_VERSION}`;
 
 const ASSETS = [
   "./",
   "./index.html",
   "./remote.html",
+  "./version.js",
   "./script.js",
   "./remote.js",
   "./style.css",
