@@ -69,8 +69,8 @@
             <ul class="list-disc list-inside space-y-1">
               <li><strong>Timeout</strong> / <strong>Walk-On</strong>: spielen die Songs aus <code>special_music</code> (<code>_TIMEOUT</code>, <code>_WALKON</code>).</li>
               <li><strong>Pause-Buttons</strong>: einer pro Datei <code>_PAUSE1</code>, <code>_PAUSE2</code> &hellip;, automatisch angelegt.</li>
-              <li><strong>Zufall (eigene Punkte)</strong>: w&auml;hlt einen Song aus Ass/Angriff, Block und den gr&uuml;nen Spalten. Selten gespielte Songs werden stark bevorzugt.</li>
-              <li><strong>Zufall (Gegnerpunkte)</strong>: gleiches Prinzip, aber nur aus Gegner.</li>
+              <li><strong>Eigene Punkte (zuf&auml;llig)</strong> &ndash; Stimmungslieder: w&auml;hlt einen Song aus Ass/Angriff, Block und den gr&uuml;nen Spalten. Selten gespielte Songs werden stark bevorzugt.</li>
+              <li><strong>Gegnerpunkte (zuf&auml;llig)</strong> &ndash; Durchatmen: gleiches Prinzip, aber nur aus Gegner.</li>
               <li><strong>Stop</strong>: blendet den Song in ca. 1 Sekunde aus.</li>
             </ul>
           </div>
@@ -198,11 +198,15 @@
       </button>
     </div>
     <div id="pause-buttons" class="grid grid-cols-2 mt-4 gap-3 w-full col-span-2"></div>
-    <button onclick="playRandomTrack()" class="px-7 py-7 bg-[#3b3f8f] rounded-xl hover:bg-[#32367d] text-lg shadow-md">
-      Zufall (eigene Punkte)
+    <button onclick="playRandomTrack()" class="px-4 py-5 bg-[#3b3f8f] rounded-xl hover:bg-[#32367d] shadow-md flex flex-col items-center justify-center leading-tight">
+      <span class="text-xl font-semibold">Eigene Punkte</span>
+      <span class="text-sm text-indigo-200">(zufällig)</span>
+      <span class="text-sm text-indigo-100 mt-2">Stimmungslieder</span>
     </button>
-    <button onclick="playRandomOpponentTrack()" class="px-7 py-7 bg-[#4a4fa8] rounded-xl hover:bg-[#41459a] text-lg shadow-md">
-      Zufall (Gegnerpunkte)
+    <button onclick="playRandomOpponentTrack()" class="px-4 py-5 bg-[#4a4fa8] rounded-xl hover:bg-[#41459a] shadow-md flex flex-col items-center justify-center leading-tight">
+      <span class="text-xl font-semibold">Gegnerpunkte</span>
+      <span class="text-sm text-indigo-200">(zufällig)</span>
+      <span class="text-sm text-indigo-100 mt-2">Durchatmen</span>
     </button>
     <button onclick="stopAudio()" class="px-7 py-7 bg-[#c93232] rounded-xl hover:bg-[#b02a2a] text-lg shadow-md">
       Stop
