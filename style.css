@@ -416,8 +416,7 @@ body.h-screen {
   flex-direction: column;
   gap: 0.6rem;
   width: min(52rem, 94vw);
-  max-height: calc(100vh - 14rem);
-  max-height: calc(100dvh - 14rem);
+  max-height: var(--panel-max-h);
   padding: 0.8rem;
   color: #fff;
   background: #1f2937;
@@ -582,7 +581,7 @@ body.h-screen {
 
 /* Untere Leiste: Spaltenbreiten (Timeout/Walk-On, Pausen, Top/Klatschen, Eigene, Gegner, Stop) */
 .bottom-bar {
-  grid-template-columns: 0.85fr 1.9fr 1.15fr 1.2fr 1.2fr 0.95fr;
+  grid-template-columns: 0.85fr 1.9fr 1.15fr 1.05fr 1.05fr 1.35fr;
 }
 
 /* Schmale Spalten: Symbole kompakter, damit der Titel mehr Platz behaelt */
@@ -601,4 +600,161 @@ body.h-screen {
 
 .eq i {
   width: 2px;
+}
+
+/* Mehrere Schalter pro Zeile duerfen umbrechen */
+.marks-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ---- Erinnerung ans Sichern + Wiederherstellen ---- */
+.marks-hint {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: min(22rem, 92vw);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: #fff;
+  background: #1e40af;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.marks-hint-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.marks-hint button {
+  padding: 0.25rem 0.6rem;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+}
+
+.marks-restore-info {
+  align-self: center;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+/* ---- Fenster enden immer ueber der unteren Leiste ---- */
+:root {
+  --panel-max-h: calc(100vh - 4.4rem - var(--bottom-bar-h, 9.5rem));
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --panel-max-h: calc(100dvh - 4.4rem - var(--bottom-bar-h, 9.5rem));
+  }
+}
+
+.panel-max {
+  max-height: var(--panel-max-h);
+}
+
+/* ---- Info / Anleitung ---- */
+.info-modal {
+  position: fixed;
+  top: 3.4rem;
+  right: 0.5rem;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: min(46rem, 96vw);
+  max-height: var(--panel-max-h);
+  padding: 0.8rem;
+  font-size: 0.9rem;
+  color: #fff;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 0.9rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.info-modal:not(.hidden) {
+  animation: panel-in 0.15s ease-out;
+}
+
+.info-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.info-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.info-body {
+  min-height: 6rem;
+  padding-right: 0.3rem;
+  overflow-y: auto;
+}
+
+.info-body h3 {
+  margin: 0.9rem 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.info-body h3:first-child {
+  margin-top: 0;
+}
+
+.info-body p,
+.info-body li {
+  line-height: 1.5;
+  color: #d1d5db;
+}
+
+.info-body strong {
+  color: #fff;
+}
+
+.info-body ul,
+.info-body ol {
+  padding-left: 1.3rem;
+}
+
+.info-body ul {
+  list-style: disc;
+}
+
+.info-body ol {
+  list-style: decimal;
+}
+
+.info-body li + li {
+  margin-top: 0.3rem;
+}
+
+.info-body code {
+  padding: 0.05rem 0.35rem;
+  font-size: 0.85em;
+  color: #fde68a;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 0.3rem;
+}
+
+.info-tip {
+  margin-top: 0.9rem;
+  padding: 0.6rem 0.8rem;
+  line-height: 1.5;
+  color: #dbeafe;
+  background: rgba(30, 64, 175, 0.35);
+  border-left: 4px solid #3b82f6;
+  border-radius: 0.5rem;
 }

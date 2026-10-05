@@ -2,11 +2,40 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "3.4";
+const APP_VERSION = "3.8";
 const APP_BUILD = "2026-10-06";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "3.8",
+    date: "2026-10-06",
+    changes: [
+      "Info-Feld neu: größer, in Reiter gegliedert (Start, Bedienung, Dateien, Markierungen, Remote und App), mit allen vier Markierungen.",
+      "Info-, Versions- und Markierungsfenster enden immer über der unteren Leiste.",
+    ],
+  },
+  {
+    version: "3.7",
+    date: "2026-10-06",
+    changes: [
+      "Erinnerung ans Sichern: kleiner Hinweis nach ein paar Änderungen und beim Start, wenn noch etwas ungesichert ist.",
+      "Letzter Stand wiederherstellbar (vor Zurücksetzen und vor dem Einlesen einer anderen Datei).",
+    ],
+  },
+  {
+    version: "3.6",
+    date: "2026-10-06",
+    changes: [
+      "Zwei neue Markierungen ohne Button: Langer Aufbau (Drop kommt spät) und Zu leise (Lautstärke nacharbeiten).",
+      "Beide stehen im Menü beim langen Druck, in der Verwaltung als Reiter und in der markierungen.json.",
+    ],
+  },
+  {
+    version: "3.5",
+    date: "2026-10-06",
+    changes: ["Stop-Button größer und mit Symbol; Eigene Punkte und Gegnerpunkte etwas schmaler."],
+  },
   {
     version: "3.4",
     date: "2026-10-06",

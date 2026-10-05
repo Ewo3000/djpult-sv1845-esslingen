@@ -220,12 +220,23 @@ function ensureAudioGraph() {
 const MARK_GROUPS = {
   top: { label: "Top-Stimmung", short: "Top", symbol: "★" },
   clap: { label: "Mitklatschen", short: "Klatschen", symbol: "👏" },
+  // Nur zum Merken (kein Zufall-Button):
+  slow: { label: "Langer Aufbau", short: "Aufbau", symbol: "\u23F3" }, // Drop kommt spaet
+  quiet: { label: "Zu leise", short: "Leise", symbol: "\uD83D\uDD08" }, // Lautstaerke nacharbeiten
 };
 const MARKS_KEY = "songMarks";
 const MARKS_FILENAME = "markierungen.json";
 const MARKS_FILE_PATTERN = /^markierungen.*\.json$/i; // auch "markierungen 2.json" usw.
 const LONG_PRESS_MS = 600;
-let marks = { top: new Set(), clap: new Set() };
+function emptyMarks() {
+  const result = {};
+  Object.keys(MARK_GROUPS).forEach((group) => {
+    result[group] = new Set();
+  });
+  return result;
+}
+
+let marks = emptyMarks();
 let marksDirty = false;
 let marksTab = "all";
 let marksSearch = "";
@@ -235,8 +246,9 @@ function loadMarks() {
     const raw = localStorage.getItem(MARKS_KEY);
     if (!raw) return;
     const data = JSON.parse(raw);
-    marks.top = new Set(Array.isArray(data.top) ? data.top : []);
-    marks.clap = new Set(Array.isArray(data.clap) ? data.clap : []);
+    Object.keys(MARK_GROUPS).forEach((group) => {
+      marks[group] = new Set(Array.isArray(data[group]) ? data[group] : []);
+    });
     marksDirty = !!data.dirty;
   } catch (e) {
     console.warn("Konnte Markierungen nicht laden:", e);
@@ -245,10 +257,11 @@ function loadMarks() {
 
 function saveMarks() {
   try {
-    localStorage.setItem(
-      MARKS_KEY,
-      JSON.stringify({ top: [...marks.top], clap: [...marks.clap], dirty: marksDirty })
-    );
+    const stored = { dirty: marksDirty };
+    Object.keys(MARK_GROUPS).forEach((group) => {
+      stored[group] = [...marks[group]];
+    });
+    localStorage.setItem(MARKS_KEY, JSON.stringify(stored));
   } catch (e) {
     console.warn("Konnte Markierungen nicht speichern:", e);
   }
@@ -256,25 +269,154 @@ function saveMarks() {
 
 function marksToJson() {
   const sorted = (set) => [...set].sort((a, b) => a.localeCompare(b, "de"));
-  return JSON.stringify(
-    { version: 1, saved: new Date().toISOString(), top: sorted(marks.top), clap: sorted(marks.clap) },
-    null,
-    2
-  );
+  const out = { version: 1, saved: new Date().toISOString() };
+  Object.keys(MARK_GROUPS).forEach((group) => {
+    out[group] = sorted(marks[group]);
+  });
+  return JSON.stringify(out, null, 2);
 }
 
 function applyMarksData(data, mode) {
   if (!data || typeof data !== "object") throw new Error("Ungueltige Markierungsdatei");
   const clean = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === "string") : []);
-  const top = clean(data.top);
-  const clap = clean(data.clap);
-  if (mode === "merge") {
-    top.forEach((id) => marks.top.add(id));
-    clap.forEach((id) => marks.clap.add(id));
-  } else {
-    marks.top = new Set(top);
-    marks.clap = new Set(clap);
+  Object.keys(MARK_GROUPS).forEach((group) => {
+    const ids = clean(data[group]);
+    if (mode === "merge") ids.forEach((id) => marks[group].add(id));
+    else marks[group] = new Set(ids);
+  });
+}
+
+// ---- Sicherheitsnetz: letzter Stand + Erinnerung ---------------------------
+const MARKS_BACKUP_KEY = "songMarksBackup";
+const MARKS_HINT_COOLDOWN_MS = 5 * 60 * 1000;
+const MARKS_HINT_MIN_CHANGES = 3;
+let marksUnsavedChanges = 0;
+let marksHintShownAt = 0;
+let marksHintTimer = null;
+
+function marksCount(source = marks) {
+  return Object.values(source).reduce((sum, set) => sum + set.size, 0);
+}
+
+function marksFromData(data) {
+  const result = emptyMarks();
+  Object.keys(MARK_GROUPS).forEach((group) => {
+    if (data && Array.isArray(data[group])) {
+      data[group].filter((x) => typeof x === "string").forEach((id) => result[group].add(id));
+    }
+  });
+  return result;
+}
+
+function marksEqual(a, b) {
+  return Object.keys(MARK_GROUPS).every(
+    (group) => a[group].size === b[group].size && [...a[group]].every((id) => b[group].has(id))
+  );
+}
+
+function readMarksBackup() {
+  try {
+    const raw = localStorage.getItem(MARKS_BACKUP_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
   }
+}
+
+// Merkt sich den aktuellen Stand (ein Platz), bevor er durch Zuruecksetzen/Einlesen ersetzt wird
+function takeMarksBackup() {
+  if (marksCount() === 0) return;
+  try {
+    const data = { savedAt: new Date().toISOString() };
+    Object.keys(MARK_GROUPS).forEach((group) => {
+      data[group] = [...marks[group]];
+    });
+    localStorage.setItem(MARKS_BACKUP_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn("Konnte Sicherheitskopie nicht speichern:", e);
+  }
+  updateRestoreButton();
+}
+
+function updateRestoreButton() {
+  const btn = document.getElementById("marks-restore");
+  const info = document.getElementById("marks-restore-info");
+  if (!btn) return;
+  const backup = readMarksBackup();
+  btn.classList.toggle("hidden", !backup);
+  if (info) info.classList.toggle("hidden", !backup);
+  if (!backup) return;
+  const count = marksCount(marksFromData(backup));
+  const when = new Date(backup.savedAt);
+  const time = isNaN(when)
+    ? ""
+    : when.toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  if (info) info.textContent = `${count} Markierungen, Stand ${time}`;
+}
+
+function restoreMarksBackup() {
+  const backup = readMarksBackup();
+  if (!backup) return;
+  const restored = marksFromData(backup);
+  takeMarksBackup(); // aktueller Stand wird zur neuen Sicherheitskopie, so ist es umkehrbar
+  marks = restored;
+  marksDirty = true;
+  afterMarksChangedBulk();
+  showToast(`Letzter Stand wiederhergestellt: ${marksCount()} Markierungen.`, "info");
+}
+
+function hideMarksHint() {
+  clearTimeout(marksHintTimer);
+  const hint = document.getElementById("marks-hint");
+  if (hint) hint.classList.remove("marks-hint-visible");
+}
+
+function showMarksHint() {
+  marksHintShownAt = Date.now();
+  let hint = document.getElementById("marks-hint");
+  if (!hint) {
+    hint = document.createElement("div");
+    hint.id = "marks-hint";
+    hint.className = "marks-hint";
+    hint.setAttribute("role", "status");
+    const text = document.createElement("span");
+    text.textContent = "Markierungen noch nicht gesichert";
+    const save = document.createElement("button");
+    save.textContent = "Sichern";
+    save.addEventListener("click", () => {
+      hideMarksHint();
+      exportMarks();
+    });
+    const close = document.createElement("button");
+    close.textContent = "\u2715";
+    close.setAttribute("aria-label", "Hinweis schließen");
+    close.addEventListener("click", hideMarksHint);
+    hint.append(text, save, close);
+    document.body.appendChild(hint);
+  }
+  const anchor = document.getElementById("marks-toggle");
+  if (anchor) {
+    const rect = anchor.getBoundingClientRect();
+    hint.style.top = `${rect.bottom + 8}px`;
+    hint.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
+  }
+  hint.classList.add("marks-hint-visible");
+  clearTimeout(marksHintTimer);
+  marksHintTimer = setTimeout(hideMarksHint, 9000);
+}
+
+function maybeShowMarksHint(force = false) {
+  if (!marksDirty) return;
+  if (!force && Date.now() - marksHintShownAt < MARKS_HINT_COOLDOWN_MS) return;
+  const panel = document.getElementById("marks-panel");
+  if (panel && !panel.classList.contains("hidden")) return; // Verwaltung offen: Sichern ist dort sichtbar
+  if (document.getElementById("mark-menu")) return; // erst nach dem Menue
+  showMarksHint();
+}
+
+function noteUnsavedChange() {
+  marksUnsavedChanges += 1;
+  if (marksUnsavedChanges >= MARKS_HINT_MIN_CHANGES) maybeShowMarksHint();
 }
 
 function getAllSongs() {
@@ -320,9 +462,15 @@ function toggleMark(group, id) {
   updateSongMarks(id);
   updateMarksStatus();
   renderMarksPanel();
+  noteUnsavedChange();
 }
 
 function updateMarksStatus() {
+  if (!marksDirty) {
+    marksUnsavedChanges = 0;
+    hideMarksHint();
+  }
+  updateRestoreButton();
   const dot = document.getElementById("marks-dirty");
   if (dot) dot.classList.toggle("hidden", !marksDirty);
   const status = document.getElementById("marks-status");
@@ -339,6 +487,7 @@ function closeMarkMenu() {
   const menu = document.getElementById("mark-menu");
   if (menu) menu.remove();
   document.removeEventListener("pointerdown", onMarkMenuOutside, true);
+  if (menu && marksUnsavedChanges >= MARKS_HINT_MIN_CHANGES) maybeShowMarksHint();
 }
 
 function onMarkMenuOutside(event) {
@@ -492,7 +641,7 @@ function renderMarksPanel() {
 
     const controls = document.createElement("span");
     controls.className = "marks-controls";
-    controls.append(makeMarkToggle("top", row.id), makeMarkToggle("clap", row.id));
+    Object.keys(MARK_GROUPS).forEach((group) => controls.append(makeMarkToggle(group, row.id)));
     if (marksTab !== "all") {
       // In den Gruppen-Reitern zusaetzlich: Song aus dieser Gruppe entfernen
       const remove = document.createElement("button");
@@ -545,10 +694,18 @@ function afterMarksChangedBulk() {
   renderMarksPanel();
 }
 
+function markSummary() {
+  const parts = Object.entries(MARK_GROUPS)
+    .filter(([group]) => marks[group].size > 0)
+    .map(([group, def]) => `${marks[group].size} ${def.label}`);
+  return parts.length ? parts.join(", ") : "keine";
+}
+
 function importMarksFromText(text, source, extraInfo = "") {
   let data;
   try {
     data = JSON.parse(text);
+    if (!marksDirty && !marksEqual(marks, marksFromData(data))) takeMarksBackup();
     applyMarksData(data, marksDirty ? "merge" : "replace");
   } catch (err) {
     console.error("Markierungsdatei unlesbar:", err);
@@ -559,7 +716,7 @@ function importMarksFromText(text, source, extraInfo = "") {
   if (!merged) marksDirty = false;
   afterMarksChangedBulk();
   showToast(
-    `Markierungen ${source}: ${marks.top.size} Top-Stimmung, ${marks.clap.size} Mitklatschen` +
+    `Markierungen ${source}: ${markSummary()}` +
       extraInfo +
       (merged ? " (mit deinen ungesicherten Änderungen zusammengeführt)" : ""),
     "info"
@@ -608,9 +765,10 @@ function loadMarksFromFile(file) {
 }
 
 function resetMarks() {
-  if (!marks.top.size && !marks.clap.size) return;
-  if (!confirm("Alle Markierungen (Top-Stimmung und Mitklatschen) löschen?")) return;
-  marks = { top: new Set(), clap: new Set() };
+  if (!Object.values(marks).some((set) => set.size > 0)) return;
+  if (!confirm("Alle Markierungen löschen? (Der letzte Stand lässt sich wiederherstellen.)")) return;
+  takeMarksBackup();
+  marks = emptyMarks();
   marksDirty = true;
   afterMarksChangedBulk();
 }
@@ -624,6 +782,7 @@ function initMarksUI() {
   bind("marks-close", toggleMarksPanel);
   bind("marks-export", exportMarks);
   bind("marks-reset", resetMarks);
+  bind("marks-restore", restoreMarksBackup);
   bind("marks-import", () => document.getElementById("marks-file")?.click());
 
   const fileInput = document.getElementById("marks-file");
@@ -648,6 +807,7 @@ function initMarksUI() {
     });
   }
   updateMarksStatus();
+  if (marksDirty) setTimeout(() => maybeShowMarksHint(true), 2500);
   // Browser bitten, die lokalen Daten nicht bei Speicherknappheit zu loeschen
   if (navigator.storage && navigator.storage.persist) {
     navigator.storage.persist().catch(() => {});
@@ -1035,6 +1195,7 @@ window.addEventListener("pageshow", syncAfterReturn);
 document.addEventListener("DOMContentLoaded", () => {
   loadMarks();
   initMarksUI();
+  initInfoUI();
   audioEl = getAudioElement();
   if (audioEl) {
     audioEl.preload = "none";
@@ -1313,6 +1474,36 @@ function clearSearch() {
     searchEls.input.value = "";
   }
   renderCategories();
+}
+
+function updateBottomBarHeight() {
+  const bar = document.querySelector(".bottom-bar");
+  if (bar) document.documentElement.style.setProperty("--bottom-bar-h", `${bar.offsetHeight}px`);
+}
+
+function initInfoUI() {
+  const tabs = document.querySelectorAll("#info-tabs [data-info-tab]");
+  const sections = document.querySelectorAll("[data-info-section]");
+  const body = document.querySelector(".info-body");
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      tabs.forEach((other) => other.classList.toggle("active", other === tab));
+      sections.forEach((section) =>
+        section.classList.toggle("hidden", section.dataset.infoSection !== tab.dataset.infoTab)
+      );
+      if (body) body.scrollTop = 0;
+    });
+  });
+  const close = document.getElementById("info-close");
+  if (close) close.addEventListener("click", toggleInfo);
+
+  // Fenster sollen immer ueber der unteren Leiste enden, auch wenn sich deren Hoehe aendert
+  updateBottomBarHeight();
+  window.addEventListener("resize", updateBottomBarHeight);
+  const bar = document.querySelector(".bottom-bar");
+  if (bar && typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(updateBottomBarHeight).observe(bar);
+  }
 }
 
 function toggleInfo() {
