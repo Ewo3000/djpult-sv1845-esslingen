@@ -608,3 +608,42 @@ body.h-screen {
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+
+/* ---- Erinnerung ans Sichern + Wiederherstellen ---- */
+.marks-hint {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: min(22rem, 92vw);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: #fff;
+  background: #1e40af;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-6px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.marks-hint-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.marks-hint button {
+  padding: 0.25rem 0.6rem;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+}
+
+.marks-restore-info {
+  align-self: center;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}

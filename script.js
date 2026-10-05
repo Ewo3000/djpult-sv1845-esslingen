@@ -286,6 +286,139 @@ function applyMarksData(data, mode) {
   });
 }
 
+// ---- Sicherheitsnetz: letzter Stand + Erinnerung ---------------------------
+const MARKS_BACKUP_KEY = "songMarksBackup";
+const MARKS_HINT_COOLDOWN_MS = 5 * 60 * 1000;
+const MARKS_HINT_MIN_CHANGES = 3;
+let marksUnsavedChanges = 0;
+let marksHintShownAt = 0;
+let marksHintTimer = null;
+
+function marksCount(source = marks) {
+  return Object.values(source).reduce((sum, set) => sum + set.size, 0);
+}
+
+function marksFromData(data) {
+  const result = emptyMarks();
+  Object.keys(MARK_GROUPS).forEach((group) => {
+    if (data && Array.isArray(data[group])) {
+      data[group].filter((x) => typeof x === "string").forEach((id) => result[group].add(id));
+    }
+  });
+  return result;
+}
+
+function marksEqual(a, b) {
+  return Object.keys(MARK_GROUPS).every(
+    (group) => a[group].size === b[group].size && [...a[group]].every((id) => b[group].has(id))
+  );
+}
+
+function readMarksBackup() {
+  try {
+    const raw = localStorage.getItem(MARKS_BACKUP_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Merkt sich den aktuellen Stand (ein Platz), bevor er durch Zuruecksetzen/Einlesen ersetzt wird
+function takeMarksBackup() {
+  if (marksCount() === 0) return;
+  try {
+    const data = { savedAt: new Date().toISOString() };
+    Object.keys(MARK_GROUPS).forEach((group) => {
+      data[group] = [...marks[group]];
+    });
+    localStorage.setItem(MARKS_BACKUP_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn("Konnte Sicherheitskopie nicht speichern:", e);
+  }
+  updateRestoreButton();
+}
+
+function updateRestoreButton() {
+  const btn = document.getElementById("marks-restore");
+  const info = document.getElementById("marks-restore-info");
+  if (!btn) return;
+  const backup = readMarksBackup();
+  btn.classList.toggle("hidden", !backup);
+  if (info) info.classList.toggle("hidden", !backup);
+  if (!backup) return;
+  const count = marksCount(marksFromData(backup));
+  const when = new Date(backup.savedAt);
+  const time = isNaN(when)
+    ? ""
+    : when.toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  if (info) info.textContent = `${count} Markierungen, Stand ${time}`;
+}
+
+function restoreMarksBackup() {
+  const backup = readMarksBackup();
+  if (!backup) return;
+  const restored = marksFromData(backup);
+  takeMarksBackup(); // aktueller Stand wird zur neuen Sicherheitskopie, so ist es umkehrbar
+  marks = restored;
+  marksDirty = true;
+  afterMarksChangedBulk();
+  showToast(`Letzter Stand wiederhergestellt: ${marksCount()} Markierungen.`, "info");
+}
+
+function hideMarksHint() {
+  clearTimeout(marksHintTimer);
+  const hint = document.getElementById("marks-hint");
+  if (hint) hint.classList.remove("marks-hint-visible");
+}
+
+function showMarksHint() {
+  marksHintShownAt = Date.now();
+  let hint = document.getElementById("marks-hint");
+  if (!hint) {
+    hint = document.createElement("div");
+    hint.id = "marks-hint";
+    hint.className = "marks-hint";
+    hint.setAttribute("role", "status");
+    const text = document.createElement("span");
+    text.textContent = "Markierungen noch nicht gesichert";
+    const save = document.createElement("button");
+    save.textContent = "Sichern";
+    save.addEventListener("click", () => {
+      hideMarksHint();
+      exportMarks();
+    });
+    const close = document.createElement("button");
+    close.textContent = "\u2715";
+    close.setAttribute("aria-label", "Hinweis schließen");
+    close.addEventListener("click", hideMarksHint);
+    hint.append(text, save, close);
+    document.body.appendChild(hint);
+  }
+  const anchor = document.getElementById("marks-toggle");
+  if (anchor) {
+    const rect = anchor.getBoundingClientRect();
+    hint.style.top = `${rect.bottom + 8}px`;
+    hint.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
+  }
+  hint.classList.add("marks-hint-visible");
+  clearTimeout(marksHintTimer);
+  marksHintTimer = setTimeout(hideMarksHint, 9000);
+}
+
+function maybeShowMarksHint(force = false) {
+  if (!marksDirty) return;
+  if (!force && Date.now() - marksHintShownAt < MARKS_HINT_COOLDOWN_MS) return;
+  const panel = document.getElementById("marks-panel");
+  if (panel && !panel.classList.contains("hidden")) return; // Verwaltung offen: Sichern ist dort sichtbar
+  if (document.getElementById("mark-menu")) return; // erst nach dem Menue
+  showMarksHint();
+}
+
+function noteUnsavedChange() {
+  marksUnsavedChanges += 1;
+  if (marksUnsavedChanges >= MARKS_HINT_MIN_CHANGES) maybeShowMarksHint();
+}
+
 function getAllSongs() {
   return Object.values(categories).flatMap((cat) => cat.items);
 }
@@ -329,9 +462,15 @@ function toggleMark(group, id) {
   updateSongMarks(id);
   updateMarksStatus();
   renderMarksPanel();
+  noteUnsavedChange();
 }
 
 function updateMarksStatus() {
+  if (!marksDirty) {
+    marksUnsavedChanges = 0;
+    hideMarksHint();
+  }
+  updateRestoreButton();
   const dot = document.getElementById("marks-dirty");
   if (dot) dot.classList.toggle("hidden", !marksDirty);
   const status = document.getElementById("marks-status");
@@ -348,6 +487,7 @@ function closeMarkMenu() {
   const menu = document.getElementById("mark-menu");
   if (menu) menu.remove();
   document.removeEventListener("pointerdown", onMarkMenuOutside, true);
+  if (menu && marksUnsavedChanges >= MARKS_HINT_MIN_CHANGES) maybeShowMarksHint();
 }
 
 function onMarkMenuOutside(event) {
@@ -565,6 +705,7 @@ function importMarksFromText(text, source, extraInfo = "") {
   let data;
   try {
     data = JSON.parse(text);
+    if (!marksDirty && !marksEqual(marks, marksFromData(data))) takeMarksBackup();
     applyMarksData(data, marksDirty ? "merge" : "replace");
   } catch (err) {
     console.error("Markierungsdatei unlesbar:", err);
@@ -625,7 +766,8 @@ function loadMarksFromFile(file) {
 
 function resetMarks() {
   if (!Object.values(marks).some((set) => set.size > 0)) return;
-  if (!confirm("Alle Markierungen löschen?")) return;
+  if (!confirm("Alle Markierungen löschen? (Der letzte Stand lässt sich wiederherstellen.)")) return;
+  takeMarksBackup();
   marks = emptyMarks();
   marksDirty = true;
   afterMarksChangedBulk();
@@ -640,6 +782,7 @@ function initMarksUI() {
   bind("marks-close", toggleMarksPanel);
   bind("marks-export", exportMarks);
   bind("marks-reset", resetMarks);
+  bind("marks-restore", restoreMarksBackup);
   bind("marks-import", () => document.getElementById("marks-file")?.click());
 
   const fileInput = document.getElementById("marks-file");
@@ -664,6 +807,7 @@ function initMarksUI() {
     });
   }
   updateMarksStatus();
+  if (marksDirty) setTimeout(() => maybeShowMarksHint(true), 2500);
   // Browser bitten, die lokalen Daten nicht bei Speicherknappheit zu loeschen
   if (navigator.storage && navigator.storage.persist) {
     navigator.storage.persist().catch(() => {});

@@ -104,6 +104,7 @@
               <li><strong>Zwei weitere Markierungen (ohne Button, nur zum Merken):</strong> &#9203; <strong>Langer Aufbau</strong> &ndash; der Drop kommt erst sp&auml;t, das Lied braucht Vorlauf. &#128264; <strong>Zu leise</strong> &ndash; Lautst&auml;rke zu den anderen Songs zu niedrig, muss nachbearbeitet werden. Im Reiter der Verwaltung siehst du jeweils die ganze Liste.</li>
               <li><strong>Verwalten:</strong> Der Button <strong>Markierungen</strong> oben &ouml;ffnet die Liste. Reiter &bdquo;Alle Songs&ldquo; (mit Suche und &#9654; zum kurzen Anh&ouml;ren, das nicht mitz&auml;hlt), &bdquo;Top-Stimmung&ldquo; und &bdquo;Mitklatschen&ldquo;. In den Gruppen siehst du bei jedem Song beide Schalter (Top und Klatschen) und kannst ihn mit &bdquo;Entfernen&ldquo; herausnehmen oder auch der anderen Gruppe zuordnen.</li>
               <li><strong>Sichern:</strong> In der Liste auf <strong>Sichern</strong> tippen &rarr; &bdquo;In Dateien sichern&ldquo; &rarr; den Ordner <code>Songs laden</code> (neben <code>music</code> und <code>special_music</code>) in iCloud w&auml;hlen &rarr; Gespeichert wird <code>markierungen.json</code>. iPadOS legt bei jedem Sichern eine neue Datei an (<code>markierungen 2.json</code> &hellip;); beim Laden nimmt die App automatisch die neueste. &Auml;ltere Dateien kannst du in der Dateien-App l&ouml;schen.</li>
+              <li><strong>Sicherheit:</strong> Jede &Auml;nderung wird automatisch im Browser gespeichert. Vor &bdquo;Alles zur&uuml;cksetzen&ldquo; und vor dem Einlesen einer anderen Datei merkt sich die App den letzten Stand &ndash; &bdquo;Letzten Stand wiederherstellen&ldquo; holt ihn zur&uuml;ck. Nach ein paar &Auml;nderungen erinnert ein kleiner Hinweis ans Sichern. F&uuml;r dauerhaft gespeicherte Daten die Seite &uuml;ber Teilen &rarr; &bdquo;Zum Home-Bildschirm&ldquo; als App installieren.</li>
               <li><strong>Wieder laden:</strong> Beim n&auml;chsten &bdquo;Songs laden&ldquo; wird die Datei automatisch eingelesen. Alternativ in der Liste &bdquo;Datei laden&ldquo;.</li>
               <li>Ein <span class="text-amber-400">&bull;</span> am Button <strong>Markierungen</strong> hei&szlig;t: &Auml;nderungen sind noch nicht gesichert. Die Zuordnung h&auml;ngt am Dateinamen &ndash; wird ein Song umbenannt, geht seine Markierung verloren.</li>
             </ul>
@@ -138,6 +139,8 @@
         <div class="marks-foot">
           <button id="marks-export">Sichern</button>
           <button id="marks-import">Datei laden</button>
+          <button id="marks-restore" class="hidden" title="Stellt den Stand vor dem letzten Zurücksetzen oder Einlesen wieder her">&#8630; Letzten Stand wiederherstellen</button>
+          <span id="marks-restore-info" class="marks-restore-info hidden"></span>
           <button id="marks-reset">Alles zurücksetzen</button>
           <input id="marks-file" type="file" accept=".json,application/json" class="hidden" />
         </div>
