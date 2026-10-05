@@ -6,7 +6,8 @@ let currentAudio = null;
 let volumeLevel = 1.0;
 let fadeIntervalId = null;
 let nowPlaying = { title: "", duration: 0, category: null };
-let nowPlayingEls = { box: null, title: null, eta: null };
+let nowPlayingEls = { box: null, title: null, eta: null, bar: null };
+let nowPlayingId = null; // ID des laufenden Songs (fuer die Hervorhebung im Raster)
 const NOW_PLAYING_WARNING_THRESHOLD = 10; // Sekunden
 let songPlayCounts = {};
 let zoomLevel = 0.9;
@@ -197,6 +198,12 @@ function getCountRange(cat) {
   return { min: min === Infinity ? 0 : min, max: max === -Infinity ? 0 : max };
 }
 
+function updatePlayingHighlight() {
+  document.querySelectorAll(".song-button").forEach((btn) => {
+    btn.classList.toggle("is-playing", nowPlayingId !== null && btn.dataset.songId === nowPlayingId);
+  });
+}
+
 function buildSongButton(song, cat, range) {
   const btn = document.createElement("button");
   btn.className = "song-button";
@@ -215,13 +222,21 @@ function buildSongButton(song, cat, range) {
     btn.classList.add("search-hit");
   }
 
+  btn.dataset.songId = song.id;
+  if (song.id === nowPlayingId) btn.classList.add("is-playing");
+
+  const eq = document.createElement("span");
+  eq.className = "eq";
+  eq.setAttribute("aria-hidden", "true");
+  eq.innerHTML = "<i></i><i></i><i></i>";
+
   const name = document.createElement("span");
   name.className = "song-name";
   name.textContent = song.display;
   const badge = document.createElement("span");
   badge.className = "song-count";
   badge.textContent = count.toString();
-  btn.append(name, badge);
+  btn.append(eq, name, badge);
 
   btn.addEventListener("click", () => {
     playAudio(song.url, song.display, song.category, song.id);
@@ -297,7 +312,9 @@ function playAudio(file, displayTitle = "", categoryKey = null, songId = null) {
 
   currentAudio = el;
   nowPlaying.category = categoryKey || null;
+  nowPlayingId = songId || null;
   incrementPlayCount(songId || displayTitle || file, categoryKey);
+  updatePlayingHighlight();
   showNowPlaying(displayTitle);
   if (audioCtx && audioCtx.state === "suspended") {
     audioCtx.resume().catch((err) => console.warn("Konnte AudioContext nicht resumieren:", err));
@@ -414,6 +431,7 @@ function showNowPlaying(title = "") {
   nowPlaying.title = title || "Playing";
   if (t) t.textContent = nowPlaying.title;
   if (eta) eta.textContent = "--:--";
+  if (nowPlayingEls.bar) nowPlayingEls.bar.style.width = "100%";
   if (box) box.classList.remove("hidden");
 }
 
@@ -428,11 +446,19 @@ function updateNowPlayingEta(el) {
   const remaining = (el.duration || 0) - (el.currentTime || 0);
   eta.textContent = formatTime(remaining);
   toggleNowPlayingWarning(remaining);
+  const { bar } = nowPlayingEls;
+  if (bar) {
+    const ratio = el.duration > 0 && isFinite(el.duration) ? remaining / el.duration : 0;
+    bar.style.width = `${Math.max(0, Math.min(1, ratio)) * 100}%`;
+  }
 }
 
 function clearNowPlaying() {
-  const { box, eta } = nowPlayingEls;
+  const { box, eta, bar } = nowPlayingEls;
   nowPlaying = { title: "", duration: 0, category: null };
+  nowPlayingId = null;
+  updatePlayingHighlight();
+  if (bar) bar.style.width = "0";
   if (eta) eta.textContent = "--:--";
   if (box) box.classList.add("hidden");
   toggleNowPlayingWarning(Infinity);
@@ -458,6 +484,7 @@ document.addEventListener("DOMContentLoaded", () => {
     box: document.getElementById("now-playing"),
     title: document.getElementById("now-playing-title"),
     eta: document.getElementById("now-playing-eta"),
+    bar: document.getElementById("now-playing-bar"),
   };
   headerEls = {
     block: document.getElementById("header-block"),

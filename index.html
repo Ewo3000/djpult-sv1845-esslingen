@@ -16,7 +16,7 @@
 </head>
 <body class="flex h-screen bg-gray-900 text-white">
     <div class="w-full flex flex-col p-6 overflow-hidden pb-40">
-      <div id="header-block" class="flex flex-col items-center justify-center mb-6 space-y-4">
+      <div id="header-block" class="flex flex-col items-center justify-center mt-8 mb-6 space-y-4">
         <div class="flex items-center justify-center">
           <h1 class="text-4xl font-bold mr-4">DJ Pult</h1>
           <img src="static/images/thumbnail_logo.png" alt="logo" class="h-15 w-12 shadow-lg" />
@@ -35,23 +35,12 @@
       </div>
       </div>
       <!-- Now Playing Banner -->
-      <div id="now-playing" class="fixed top-2 right-2 bg-gray-800 text-white text-sm px-3 py-2 rounded-md shadow hidden w-72 max-w-sm">
+      <div id="now-playing" class="fixed top-2 right-2 z-40 bg-gray-800 text-white text-sm px-3 py-2 rounded-xl shadow hidden w-72 max-w-sm">
         <div id="now-playing-title" class="font-semibold truncate">--</div>
         <div id="now-playing-eta" class="text-xs text-gray-300">--:--</div>
+        <div class="np-progress"><div id="now-playing-bar" class="np-progress-bar"></div></div>
       </div>
       <!-- Info / Release Notes -->
-      <div class="fixed top-2 right-[28rem] bg-gray-800 text-white text-xs px-3 py-2 rounded-xl shadow flex items-center space-x-2">
-        <span class="text-xs">Vol</span>
-        <input type="range" id="volume" min="0" max="1" step="0.05" value="1.0"
-          class="horizontal-slider w-32"
-          oninput="setVolume(this.value)">
-      </div>
-      <button id="info-toggle" onclick="toggleInfo()" class="fixed top-2 right-96 bg-gray-800 text-white text-xs px-3 py-2 rounded-xl shadow hover:bg-gray-700">
-        Info
-      </button>
-      <button id="version-toggle" onclick="toggleVersion()" class="fixed top-2 right-80 bg-gray-800 text-gray-300 text-xs px-3 py-2 rounded-xl shadow hover:bg-gray-700">
-        Ver.
-      </button>
       <div id="version-panel" class="fixed top-10 right-10 bg-gray-800 text-white text-xs px-3 py-2 rounded shadow hidden z-50 w-72 max-h-[calc(100vh-13rem)] overflow-y-auto">
         <div>Version <strong id="version-number">-</strong> <span class="text-gray-300">(<span id="version-build">-</span>)</span></div>
         <div class="text-gray-400">Cache: <span id="version-cache">-</span></div>
@@ -117,20 +106,33 @@
           </div>
         </div>
       </div>
-      <!-- Zoom Controls -->
-      <div class="fixed top-2 left-2 bg-gray-800 text-white text-sm px-3 py-2 rounded-xl shadow flex items-center space-x-2">
-        <span>Zoom</span>
-        <button id="zoom-out" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">-</button>
-        <span id="zoom-level" class="w-10 text-center">100%</span>
-        <button id="zoom-in" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">+</button>
-        <button id="reset-counts" class="ml-2 px-2 py-1 bg-red-700 hover:bg-red-600 rounded">Reset</button>
-        <div class="ml-3 flex items-center space-x-2">
-          <input id="search-input" type="search" placeholder="Song suchen" class="search-input text-black px-2 py-1 rounded" />
-          <span id="search-count" class="text-xs text-gray-300">0 Treffer</span>
+      <!-- Kopfleiste -->
+      <div id="top-bar" class="top-bar">
+        <div class="top-group">
+          <span class="text-gray-400">Zoom</span>
+          <button id="zoom-out" class="top-btn">&minus;</button>
+          <span id="zoom-level" class="w-10 text-center">100%</span>
+          <button id="zoom-in" class="top-btn">+</button>
         </div>
-        <button id="toggle-header" class="ml-3 bg-gray-700 text-white text-xs px-2 py-1 rounded shadow hover:bg-gray-600">
-          Kopf ausblenden
-        </button>
+        <span class="top-sep"></span>
+        <div class="top-group">
+          <input id="search-input" type="search" placeholder="Song suchen" class="search-input text-black px-2 py-1 rounded-lg" />
+          <span id="search-count" class="text-xs text-gray-400 whitespace-nowrap">0 Treffer</span>
+          <button id="toggle-header" class="top-btn text-xs">Kopf ausblenden</button>
+        </div>
+        <span class="top-spacer"></span>
+        <div class="top-group">
+          <span class="text-xs text-gray-400">Vol</span>
+          <input type="range" id="volume" min="0" max="1" step="0.05" value="1.0"
+            class="horizontal-slider w-24"
+            oninput="setVolume(this.value)">
+        </div>
+        <span class="top-sep"></span>
+        <div class="top-group">
+          <button id="info-toggle" onclick="toggleInfo()" class="top-btn text-xs">Info</button>
+          <button id="version-toggle" onclick="toggleVersion()" class="top-btn text-xs text-gray-300">Ver.</button>
+          <button id="reset-counts" class="top-btn top-btn-quiet text-xs" title="Alle Play-Zähler auf 0 setzen">Reset</button>
+        </div>
       </div>
 
     <!-- Song-Kategorien (werden per JS gefüllt) -->
