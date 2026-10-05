@@ -487,15 +487,14 @@ function renderMarksPanel() {
 
     const controls = document.createElement("span");
     controls.className = "marks-controls";
-    if (marksTab === "all") {
-      controls.append(makeMarkToggle("top", row.id), makeMarkToggle("clap", row.id));
-    } else {
-      const other = marksTab === "top" ? "clap" : "top";
+    controls.append(makeMarkToggle("top", row.id), makeMarkToggle("clap", row.id));
+    if (marksTab !== "all") {
+      // In den Gruppen-Reitern zusaetzlich: Song aus dieser Gruppe entfernen
       const remove = document.createElement("button");
       remove.className = "mark-remove";
       remove.textContent = "✕ Entfernen";
       remove.addEventListener("click", () => toggleMark(marksTab, row.id));
-      controls.append(makeMarkToggle(other, row.id), remove);
+      controls.append(remove);
     }
 
     el.append(play, name, controls);

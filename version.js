@@ -2,11 +2,16 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "3.0";
+const APP_VERSION = "3.1";
 const APP_BUILD = "2026-10-06";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "3.1",
+    date: "2026-10-06",
+    changes: ["Markierungen: In den Gruppen-Reitern stehen jetzt beide Schalter (Top und Klatschen) plus Entfernen."],
+  },
   {
     version: "3.0",
     date: "2026-10-06",
