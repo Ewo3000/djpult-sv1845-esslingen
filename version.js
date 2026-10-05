@@ -2,11 +2,16 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "2.2";
+const APP_VERSION = "2.3";
 const APP_BUILD = "2026-10-05";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "2.3",
+    date: "2026-10-05",
+    changes: ["Neues App-Symbol für den Home-Bildschirm (Wappen mit Soundwave-Hintergrund)."],
+  },
   {
     version: "2.2",
     date: "2026-10-05",
