@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-title" content="DJ Pult" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="theme-color" content="#111827" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <title>DJ Pult</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -16,7 +16,7 @@
 </head>
 <body class="flex h-screen bg-gray-900 text-white">
     <div class="w-full flex flex-col p-6 overflow-hidden pb-40">
-      <div id="header-block" class="flex flex-col items-center justify-center mb-6 space-y-4">
+      <div id="header-block" class="flex flex-col items-center justify-center mt-8 mb-6 space-y-4">
         <div class="flex items-center justify-center">
           <h1 class="text-4xl font-bold mr-4">DJ Pult</h1>
           <img src="static/images/thumbnail_logo.png" alt="logo" class="h-15 w-12 shadow-lg" />
@@ -35,23 +35,12 @@
       </div>
       </div>
       <!-- Now Playing Banner -->
-      <div id="now-playing" class="fixed top-2 right-2 bg-gray-800 text-white text-sm px-3 py-2 rounded-md shadow hidden w-72 max-w-sm">
+      <div id="now-playing" class="fixed top-2 right-2 z-40 bg-gray-800 text-white text-sm px-3 py-2 rounded-xl shadow hidden w-72 max-w-sm">
         <div id="now-playing-title" class="font-semibold truncate">--</div>
         <div id="now-playing-eta" class="text-xs text-gray-300">--:--</div>
+        <div class="np-progress"><div id="now-playing-bar" class="np-progress-bar"></div></div>
       </div>
       <!-- Info / Release Notes -->
-      <div class="fixed top-2 right-[28rem] bg-gray-800 text-white text-xs px-3 py-2 rounded shadow flex items-center space-x-2">
-        <span class="text-xs">Vol</span>
-        <input type="range" id="volume" min="0" max="1" step="0.05" value="1.0"
-          class="horizontal-slider w-32"
-          oninput="setVolume(this.value)">
-      </div>
-      <button id="info-toggle" onclick="toggleInfo()" class="fixed top-2 right-96 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow hover:bg-gray-700">
-        Info
-      </button>
-      <button id="version-toggle" onclick="toggleVersion()" class="fixed top-2 right-80 bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded shadow hover:bg-gray-700">
-        Ver.
-      </button>
       <div id="version-panel" class="fixed top-10 right-10 bg-gray-800 text-white text-xs px-3 py-2 rounded shadow hidden z-50 w-72 max-h-[calc(100vh-13rem)] overflow-y-auto">
         <div>Version <strong id="version-number">-</strong> <span class="text-gray-300">(<span id="version-build">-</span>)</span></div>
         <div class="text-gray-400">Cache: <span id="version-cache">-</span></div>
@@ -107,25 +96,43 @@
             <p class="mt-1">Beide Ger&auml;te m&uuml;ssen im selben Netz oder Hotspot sein.</p>
           </div>
           <div>
+            <div class="font-semibold">Als App installieren</div>
+            <p><strong>iPad/iPhone (Safari):</strong> Teilen-Symbol antippen &rarr; &bdquo;Zum Home-Bildschirm&ldquo; &rarr; &bdquo;Hinzuf&uuml;gen&ldquo;. Danach starten, wie jede App, vom Home-Bildschirm &ndash; im Vollbild. <strong>Android/PC (Chrome):</strong> Men&uuml; &rarr; &bdquo;App installieren&ldquo;.</p>
+            <p class="mt-1">Die Songs m&uuml;ssen nach jedem Start der App neu &uuml;ber &bdquo;Songs laden&ldquo; gew&auml;hlt werden.</p>
+          </div>
+          <div>
             <div class="font-semibold">Offline &amp; Version</div>
             <p>Die App funktioniert nach dem ersten Laden auch ohne Internet. Der Button <strong>v&hellip;</strong> neben Info zeigt Version und &Auml;nderungen.</p>
           </div>
         </div>
       </div>
-      <!-- Zoom Controls -->
-      <div class="fixed top-2 left-2 bg-gray-800 text-white text-sm px-3 py-2 rounded-md shadow flex items-center space-x-2">
-        <span>Zoom</span>
-        <button id="zoom-out" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">-</button>
-        <span id="zoom-level" class="w-10 text-center">100%</span>
-        <button id="zoom-in" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded">+</button>
-        <button id="reset-counts" class="ml-2 px-2 py-1 bg-red-700 hover:bg-red-600 rounded">Reset</button>
-        <div class="ml-3 flex items-center space-x-2">
-          <input id="search-input" type="search" placeholder="Song suchen" class="search-input text-black px-2 py-1 rounded" />
-          <span id="search-count" class="text-xs text-gray-300">0 Treffer</span>
+      <!-- Kopfleiste -->
+      <div id="top-bar" class="top-bar">
+        <div class="top-group">
+          <span class="text-gray-400">Zoom</span>
+          <button id="zoom-out" class="top-btn">&minus;</button>
+          <span id="zoom-level" class="w-10 text-center">100%</span>
+          <button id="zoom-in" class="top-btn">+</button>
         </div>
-        <button id="toggle-header" class="ml-3 bg-gray-700 text-white text-xs px-2 py-1 rounded shadow hover:bg-gray-600">
-          Kopf ausblenden
-        </button>
+        <span class="top-sep"></span>
+        <div class="top-group">
+          <input id="search-input" type="search" placeholder="Song suchen" class="search-input text-black px-2 py-1 rounded-lg" />
+          <span id="search-count" class="text-xs text-gray-400 whitespace-nowrap">0 Treffer</span>
+          <button id="toggle-header" class="top-btn text-xs">Kopf ausblenden</button>
+        </div>
+        <span class="top-spacer"></span>
+        <div class="top-group">
+          <span class="text-xs text-gray-400">Vol</span>
+          <input type="range" id="volume" min="0" max="1" step="0.05" value="1.0"
+            class="horizontal-slider w-24"
+            oninput="setVolume(this.value)">
+        </div>
+        <span class="top-sep"></span>
+        <div class="top-group">
+          <button id="info-toggle" onclick="toggleInfo()" class="top-btn text-xs">Info</button>
+          <button id="version-toggle" onclick="toggleVersion()" class="top-btn text-xs text-gray-300">Ver.</button>
+          <button id="reset-counts" class="top-btn top-btn-quiet text-xs" title="Alle Play-Zähler auf 0 setzen">Reset</button>
+        </div>
       </div>
 
     <!-- Song-Kategorien (werden per JS gefüllt) -->
@@ -182,22 +189,22 @@
   <div class="w-full grid grid-cols-6 justify-between gap-4 bg-gray-800 p-4 rounded-lg mt-2 fixed bottom-0 left-0 z-50">
       <div class="grid grid-cols-1 mt-4 gap-4 w-full">
         <button id="btn-timeout"
-          class="bg-yellow-500 rounded-lg hover:bg-yellow-700 text-xl px-3 py-3">
+          class="bg-[#c99a12] hover:bg-[#b3880f] text-[#1f1300] rounded-xl text-xl px-3 py-3 shadow-md">
           Timeout
         </button>
       <button id="btn-walkon"
-        class="bg-blue-500 rounded-lg hover:bg-blue-700 text-xl px-3 py-3">
+        class="bg-[#2a62b8] hover:bg-[#2455a1] rounded-xl text-xl px-3 py-3 shadow-md">
         Walk-On
       </button>
     </div>
     <div id="pause-buttons" class="grid grid-cols-2 mt-4 gap-3 w-full col-span-2"></div>
-    <button onclick="playRandomTrack()" class="px-7 py-7 bg-indigo-600 rounded-lg hover:bg-indigo-800 text-lg">
+    <button onclick="playRandomTrack()" class="px-7 py-7 bg-[#3b3f8f] rounded-xl hover:bg-[#32367d] text-lg shadow-md">
       Zufall (eigene Punkte)
     </button>
-    <button onclick="playRandomOpponentTrack()" class="px-7 py-7 bg-indigo-500 rounded-lg hover:bg-indigo-700 text-lg">
+    <button onclick="playRandomOpponentTrack()" class="px-7 py-7 bg-[#4a4fa8] rounded-xl hover:bg-[#41459a] text-lg shadow-md">
       Zufall (Gegnerpunkte)
     </button>
-    <button onclick="stopAudio()" class="px-7 py-7 bg-red-600 rounded-lg hover:bg-red-800 text-lg">
+    <button onclick="stopAudio()" class="px-7 py-7 bg-[#c93232] rounded-xl hover:bg-[#b02a2a] text-lg shadow-md">
       Stop
     </button>
   </div>

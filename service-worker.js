@@ -12,6 +12,9 @@ const ASSETS = [
   "./style.css",
   "./manifest.json",
   "./icon-192.png",
+  "./icon-512.png",
+  "./icon-512-maskable.png",
+  "./apple-touch-icon.png",
   "./static/images/thumbnail_logo.png",
 ];
 

@@ -6,7 +6,8 @@ let currentAudio = null;
 let volumeLevel = 1.0;
 let fadeIntervalId = null;
 let nowPlaying = { title: "", duration: 0, category: null };
-let nowPlayingEls = { box: null, title: null, eta: null };
+let nowPlayingEls = { box: null, title: null, eta: null, bar: null };
+let nowPlayingId = null; // ID des laufenden Songs (fuer die Hervorhebung im Raster)
 const NOW_PLAYING_WARNING_THRESHOLD = 10; // Sekunden
 let songPlayCounts = {};
 let zoomLevel = 0.9;
@@ -27,20 +28,10 @@ const categories = {
   ass_angriff: { title: "Ass/Angriff", color: "bg-blue-600", baseHSL: [217, 83, 57], items: [] }, // Tailwind blue-600
   block: { title: "Block", color: "bg-pink-600", baseHSL: [336, 81, 62], items: [] }, // Tailwind pink-600
   gegner: { title: "Gegner", color: "bg-red-600", baseHSL: [0, 72, 52], items: [] }, // Tailwind red-600
-  sonstiges: { title: "_", color: "bg-green-600", baseHSL: [142, 71, 45], items: [] }, // Tailwind green-600
-  noch_mehr: { title: "_", color: "bg-green-600", baseHSL: [142, 71, 45], items: [] }, // Tailwind green-600
-  noch_mehr2: { title: "_", color: "bg-green-600", baseHSL: [142, 71, 45], items: [] }, // Tailwind green-600
-  spass: { title: "Lustig", color: "bg-purple-600", items: [] },
-};
-
-const icons = {
-  ass_angriff: "\uD83D\uDD25",
-  block: "\uD83E\uDDF1",
-  gegner: "\u2694\uFE0F",
-  spass: "\uD83C\uDF89",
-  sonstiges: "\uD83C\uDFB5",
-  noch_mehr: "\uD83C\uDFB5",
-  noch_mehr2: "\uD83C\uDFB5",
+  sonstiges: { title: "Sonstiges 1", color: "bg-green-600", baseHSL: [142, 71, 45], items: [] }, // Tailwind green-600
+  noch_mehr: { title: "Sonstiges 2", color: "bg-green-600", baseHSL: [142, 71, 45], items: [] }, // Tailwind green-600
+  noch_mehr2: { title: "Sonstiges 3", color: "bg-green-600", baseHSL: [142, 71, 45], items: [] }, // Tailwind green-600
+  spass: { title: "Lustig", color: "bg-purple-600", baseHSL: [271, 81, 56], items: [] }, // Tailwind purple-600
 };
 
 const specialTracks = {
@@ -139,7 +130,6 @@ function handleFiles(fileList) {
       id: file.name, // stabile ID fuer Counter/Storage
       name: file.name,
       display: cleanName(file.name),
-      icon: icons[key],
       category: key,
       url: URL.createObjectURL(file),
     });
@@ -149,6 +139,15 @@ function handleFiles(fileList) {
   updateSpecialButtons();
   collapseHeader();
   sendSongsListToRemote();
+  resetPageScroll();
+}
+
+// Nach Dateiauswahl/Layoutwechsel kann Safari die Seite nach oben/unten verschoben lassen.
+function resetPageScroll() {
+  const reset = () => window.scrollTo(0, 0);
+  reset();
+  setTimeout(reset, 150);
+  setTimeout(reset, 500);
 }
 
 function getAudioElement() {
@@ -188,6 +187,64 @@ function ensureAudioGraph() {
   return audioCtx;
 }
 
+function getCountRange(cat) {
+  let min = Infinity;
+  let max = -Infinity;
+  cat.items.forEach((song) => {
+    const count = songPlayCounts[song.id] || 0;
+    if (count < min) min = count;
+    if (count > max) max = count;
+  });
+  return { min: min === Infinity ? 0 : min, max: max === -Infinity ? 0 : max };
+}
+
+function updatePlayingHighlight() {
+  document.querySelectorAll(".song-button").forEach((btn) => {
+    btn.classList.toggle("is-playing", nowPlayingId !== null && btn.dataset.songId === nowPlayingId);
+  });
+}
+
+function buildSongButton(song, cat, range) {
+  const btn = document.createElement("button");
+  btn.className = "song-button";
+
+  const count = songPlayCounts[song.id] || 0;
+  if (cat.baseHSL) {
+    // Heatmap: haeufiger gespielte Songs werden heller
+    const intensity = range.max !== range.min ? (count - range.min) / (range.max - range.min) : 0;
+    const [h, s, l] = cat.baseHSL;
+    btn.style.backgroundColor = `hsl(${h}, ${Math.round(s * 0.55)}%, ${20 + intensity * 9}%)`;
+    btn.style.borderColor = `hsl(${h}, ${Math.round(s * 0.5)}%, ${30 + intensity * 8}%)`;
+    btn.style.borderLeftColor = `hsl(${h}, ${s}%, ${l}%)`;
+  }
+
+  if (matchesSearch(song)) {
+    btn.classList.add("search-hit");
+  }
+
+  btn.dataset.songId = song.id;
+  if (song.id === nowPlayingId) btn.classList.add("is-playing");
+
+  const eq = document.createElement("span");
+  eq.className = "eq";
+  eq.setAttribute("aria-hidden", "true");
+  eq.innerHTML = "<i></i><i></i><i></i>";
+
+  const name = document.createElement("span");
+  name.className = "song-name";
+  name.textContent = song.display;
+  const badge = document.createElement("span");
+  badge.className = "song-count";
+  badge.textContent = count.toString();
+  btn.append(eq, name, badge);
+
+  btn.addEventListener("click", () => {
+    playAudio(song.url, song.display, song.category, song.id);
+    clearSearch();
+  });
+  return btn;
+}
+
 function renderCategories() {
   const grid = document.getElementById("categories-grid");
   grid.innerHTML = "";
@@ -196,70 +253,33 @@ function renderCategories() {
     const col = document.createElement("div");
     col.classList.add("category-col");
     col.setAttribute("data-category", key);
-    col.innerHTML = `
-      <h2 class="text-xl font-bold mb-2 text-center">${cat.title}</h2>
-      <div class="flex flex-col space-y-2 category-list" id="col-${key}" data-category="${key}"></div>
-    `;
-    grid.appendChild(col);
-    const container = col.querySelector(`#col-${key}`);
-    const isHeatmapCategory = [
-      "ass_angriff",
-      "block",
-      "gegner",
-      "sonstiges",
-      "noch_mehr",
-      "noch_mehr2",
-      "spass",
-    ].includes(key);
 
-    let minCount = Infinity;
-    let maxCount = -Infinity;
-    if (isHeatmapCategory) {
-      cat.items.forEach((song) => {
-        const count = songPlayCounts[song.id] || 0;
-        if (count < minCount) minCount = count;
-        if (count > maxCount) maxCount = count;
-      });
-      if (minCount === Infinity) minCount = 0;
-      if (maxCount === -Infinity) maxCount = 0;
+    const head = document.createElement("div");
+    head.className = "category-head";
+    if (cat.baseHSL) {
+      const [h, s, l] = cat.baseHSL;
+      head.style.borderBottomColor = `hsl(${h}, ${s}%, ${l}%)`;
     }
+    const title = document.createElement("span");
+    title.className = "category-title";
+    title.textContent = cat.title;
+    const total = document.createElement("span");
+    total.className = "category-total";
+    total.textContent = cat.items.length.toString();
+    head.append(title, total);
 
+    const container = document.createElement("div");
+    container.className = "flex flex-col space-y-2 category-list";
+    container.id = `col-${key}`;
+    container.dataset.category = key;
+
+    col.append(head, container);
+    grid.appendChild(col);
+
+    const range = getCountRange(cat);
     cat.items.forEach((song) => {
-      const isMatch = matchesSearch(song);
-      if (isMatch) totalMatches += 1;
-      const btn = document.createElement("button");
-      btn.className = `song-button px-4 py-2 text-lg rounded-lg hover:opacity-80 w-full ${cat.color} relative`;
-
-      if (isHeatmapCategory && cat.baseHSL) {
-        const count = songPlayCounts[song.id] || 0;
-        let intensity = 0;
-        if (maxCount !== minCount) {
-          intensity = (count - minCount) / (maxCount - minCount);
-        }
-        const [h, s, l] = cat.baseHSL;
-        const lightness = Math.min(90, l + intensity * 12);
-        btn.style.backgroundColor = `hsl(${h}, ${s}%, ${lightness}%)`;
-      }
-
-      if (isMatch) {
-        btn.classList.add("search-hit");
-      }
-
-      btn.textContent = `${song.icon} ${song.display}`;
-      btn.addEventListener("click", () => {
-        playAudio(song.url, song.display, song.category, song.id);
-        clearSearch();
-      });
-
-      if (isHeatmapCategory) {
-        const badge = document.createElement("div");
-        badge.className =
-          "absolute top-1 right-1 text-[10px] bg-black bg-opacity-60 px-1 rounded";
-        badge.textContent = (songPlayCounts[song.id] || 0).toString();
-        btn.appendChild(badge);
-      }
-
-      container.appendChild(btn);
+      if (matchesSearch(song)) totalMatches += 1;
+      container.appendChild(buildSongButton(song, cat, range));
     });
   });
   updateSearchCount(totalMatches);
@@ -292,7 +312,9 @@ function playAudio(file, displayTitle = "", categoryKey = null, songId = null) {
 
   currentAudio = el;
   nowPlaying.category = categoryKey || null;
+  nowPlayingId = songId || null;
   incrementPlayCount(songId || displayTitle || file, categoryKey);
+  updatePlayingHighlight();
   showNowPlaying(displayTitle);
   if (audioCtx && audioCtx.state === "suspended") {
     audioCtx.resume().catch((err) => console.warn("Konnte AudioContext nicht resumieren:", err));
@@ -409,6 +431,7 @@ function showNowPlaying(title = "") {
   nowPlaying.title = title || "Playing";
   if (t) t.textContent = nowPlaying.title;
   if (eta) eta.textContent = "--:--";
+  if (nowPlayingEls.bar) nowPlayingEls.bar.style.width = "100%";
   if (box) box.classList.remove("hidden");
 }
 
@@ -423,11 +446,19 @@ function updateNowPlayingEta(el) {
   const remaining = (el.duration || 0) - (el.currentTime || 0);
   eta.textContent = formatTime(remaining);
   toggleNowPlayingWarning(remaining);
+  const { bar } = nowPlayingEls;
+  if (bar) {
+    const ratio = el.duration > 0 && isFinite(el.duration) ? remaining / el.duration : 0;
+    bar.style.width = `${Math.max(0, Math.min(1, ratio)) * 100}%`;
+  }
 }
 
 function clearNowPlaying() {
-  const { box, eta } = nowPlayingEls;
+  const { box, eta, bar } = nowPlayingEls;
   nowPlaying = { title: "", duration: 0, category: null };
+  nowPlayingId = null;
+  updatePlayingHighlight();
+  if (bar) bar.style.width = "0";
   if (eta) eta.textContent = "--:--";
   if (box) box.classList.add("hidden");
   toggleNowPlayingWarning(Infinity);
@@ -453,6 +484,7 @@ document.addEventListener("DOMContentLoaded", () => {
     box: document.getElementById("now-playing"),
     title: document.getElementById("now-playing-title"),
     eta: document.getElementById("now-playing-eta"),
+    bar: document.getElementById("now-playing-bar"),
   };
   headerEls = {
     block: document.getElementById("header-block"),
@@ -572,62 +604,9 @@ function renderSingleCategory(key) {
   if (!container) return;
   container.innerHTML = "";
 
-  const isHeatmapCategory = [
-    "ass_angriff",
-    "block",
-    "gegner",
-    "sonstiges",
-    "noch_mehr",
-    "noch_mehr2",
-    "spass",
-  ].includes(key);
-
-  let minCount = Infinity;
-  let maxCount = -Infinity;
-  if (isHeatmapCategory) {
-    cat.items.forEach((song) => {
-      const count = songPlayCounts[song.id] || 0;
-      if (count < minCount) minCount = count;
-      if (count > maxCount) maxCount = count;
-    });
-    if (minCount === Infinity) minCount = 0;
-    if (maxCount === -Infinity) maxCount = 0;
-  }
-
+  const range = getCountRange(cat);
   cat.items.forEach((song) => {
-    const isMatch = matchesSearch(song);
-    const btn = document.createElement("button");
-    btn.className = `song-button px-4 py-2 text-lg rounded-lg hover:opacity-80 w-full ${cat.color} relative`;
-
-    if (isHeatmapCategory && cat.baseHSL) {
-      const count = songPlayCounts[song.id] || 0;
-      let intensity = 0;
-      if (maxCount !== minCount) {
-        intensity = (count - minCount) / (maxCount - minCount);
-      }
-      const [h, s, l] = cat.baseHSL;
-      const lightness = Math.min(90, l + intensity * 12);
-      btn.style.backgroundColor = `hsl(${h}, ${s}%, ${lightness}%)`;
-    }
-
-    if (isMatch) {
-      btn.classList.add("search-hit");
-    }
-
-    btn.textContent = `${song.icon} ${song.display}`;
-    btn.addEventListener("click", () => {
-      playAudio(song.url, song.display, song.category, song.id);
-      clearSearch();
-    });
-
-    if (isHeatmapCategory) {
-      const badge = document.createElement("div");
-      badge.className = "absolute top-1 right-1 text-[10px] bg-black bg-opacity-60 px-1 rounded";
-      badge.textContent = (songPlayCounts[song.id] || 0).toString();
-      btn.appendChild(badge);
-    }
-
-    container.appendChild(btn);
+    container.appendChild(buildSongButton(song, cat, range));
   });
   updateSearchCount(countSearchHits());
 }
@@ -698,7 +677,7 @@ function renderPauseButtons() {
     const base = track.display || `Pause ${track.number || idx + 1}`;
     const label = `Pause: ${base}`;
     const btn = document.createElement("button");
-    btn.className = "bg-orange-500 rounded-lg hover:bg-yellow-700 text-xl px-3 py-3 w-full";
+    btn.className = "pause-button bg-[#2b3445] hover:bg-[#364156] rounded-xl text-lg px-3 py-3 w-full";
     btn.textContent = label;
     btn.addEventListener("click", () => {
       playAudio(track.url, label);
