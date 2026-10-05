@@ -21,7 +21,12 @@ self.addEventListener("install", (event) => {
       // einzeln hinzufuegen: eine fehlende Datei darf die Installation nicht kippen
       Promise.all(
         ASSETS.map((url) =>
-          cache.add(url).catch((err) => console.warn("Nicht gecacht:", url, err))
+          fetch(url, { cache: "reload" })
+            .then((response) => {
+              if (!response.ok) throw new Error(`HTTP ${response.status}`);
+              return cache.put(url, response);
+            })
+            .catch((err) => console.warn("Nicht gecacht:", url, err))
         )
       )
     )
@@ -49,7 +54,8 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) =>
       cache.match(request).then((cached) => {
-        const network = fetch(request)
+        // "no-cache": immer beim Server nachfragen (GitHub Pages cached sonst 10 Min.)
+        const network = fetch(request, { cache: "no-cache" })
           .then((response) => {
             if (response && (response.ok || response.type === "opaque")) {
               cache.put(request, response.clone());
