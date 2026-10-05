@@ -582,7 +582,7 @@ body.h-screen {
 
 /* Untere Leiste: Spaltenbreiten (Timeout/Walk-On, Pausen, Top/Klatschen, Eigene, Gegner, Stop) */
 .bottom-bar {
-  grid-template-columns: 0.85fr 1.9fr 1.15fr 1.2fr 1.2fr 0.95fr;
+  grid-template-columns: 0.85fr 1.9fr 1.15fr 1.05fr 1.05fr 1.35fr;
 }
 
 /* Schmale Spalten: Symbole kompakter, damit der Titel mehr Platz behaelt */

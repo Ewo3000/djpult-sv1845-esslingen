@@ -243,18 +243,19 @@
         <span class="text-xs text-teal-100">(zufällig)</span>
       </button>
     </div>
-    <button onclick="playRandomTrack()" class="px-3 py-5 bg-[#3b3f8f] rounded-xl hover:bg-[#32367d] shadow-md flex flex-col items-center justify-center leading-tight">
-      <span class="text-xl font-semibold">Eigene Punkte</span>
+    <button onclick="playRandomTrack()" class="px-2 py-5 bg-[#3b3f8f] rounded-xl hover:bg-[#32367d] shadow-md flex flex-col items-center justify-center leading-tight">
+      <span class="text-lg font-semibold">Eigene Punkte</span>
       <span class="text-sm text-indigo-200">(zufällig)</span>
       <span class="text-sm text-indigo-100 mt-2">Stimmungslieder</span>
     </button>
-    <button onclick="playRandomOpponentTrack()" class="px-3 py-5 bg-[#4a4fa8] rounded-xl hover:bg-[#41459a] shadow-md flex flex-col items-center justify-center leading-tight">
-      <span class="text-xl font-semibold">Gegnerpunkte</span>
+    <button onclick="playRandomOpponentTrack()" class="px-2 py-5 bg-[#4a4fa8] rounded-xl hover:bg-[#41459a] shadow-md flex flex-col items-center justify-center leading-tight">
+      <span class="text-lg font-semibold">Gegnerpunkte</span>
       <span class="text-sm text-indigo-200">(zufällig)</span>
       <span class="text-sm text-indigo-100 mt-2">Durchatmen</span>
     </button>
-    <button onclick="stopAudio()" class="px-4 py-7 bg-[#c93232] rounded-xl hover:bg-[#b02a2a] text-lg shadow-md">
-      Stop
+    <button onclick="stopAudio()" class="px-4 py-4 bg-[#c93232] rounded-xl hover:bg-[#b02a2a] shadow-md flex flex-col items-center justify-center gap-2" aria-label="Stop">
+      <svg viewBox="0 0 24 24" class="w-9 h-9" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2.5"></rect></svg>
+      <span class="text-2xl font-bold leading-none">Stop</span>
     </button>
   </div>
 
