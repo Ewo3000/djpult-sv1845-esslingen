@@ -138,6 +138,15 @@ function handleFiles(fileList) {
   updateSpecialButtons();
   collapseHeader();
   sendSongsListToRemote();
+  resetPageScroll();
+}
+
+// Nach Dateiauswahl/Layoutwechsel kann Safari die Seite nach oben/unten verschoben lassen.
+function resetPageScroll() {
+  const reset = () => window.scrollTo(0, 0);
+  reset();
+  setTimeout(reset, 150);
+  setTimeout(reset, 500);
 }
 
 function getAudioElement() {

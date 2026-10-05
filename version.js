@@ -2,11 +2,18 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "2.0";
+const APP_VERSION = "2.1";
 const APP_BUILD = "2026-10-05";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "2.1",
+    date: "2026-10-05",
+    changes: [
+      "Fix iPad-Safari: Kopfleiste verdeckt nach dem Laden der Songs nicht mehr die erste Reihe.",
+    ],
+  },
   {
     version: "2.0",
     date: "2026-10-05",
