@@ -2,11 +2,63 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "2.5";
-const APP_BUILD = "2026-10-05";
+const APP_VERSION = "3.4";
+const APP_BUILD = "2026-10-06";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "3.4",
+    date: "2026-10-06",
+    changes: [
+      "Sichern erzeugt keine zusätzliche Textdatei mehr.",
+      "Beim Laden wird bei mehreren Markierungsdateien (markierungen 2.json …) automatisch die neueste genommen.",
+    ],
+  },
+  {
+    version: "3.3",
+    date: "2026-10-06",
+    changes: [
+      "Zufall schärfer: Songs mit den wenigsten Wiedergaben werden klar bevorzugt, oft gespielte kommen deutlich seltener.",
+      "Die zuletzt gespielten Songs werden beim Zufall übersprungen (gilt für alle vier Zufall-Buttons).",
+    ],
+  },
+  {
+    version: "3.2",
+    date: "2026-10-06",
+    changes: [
+      "Neu: Zufall-Buttons Top-Stimmung und Mitklatschen in der unteren Leiste.",
+      "Untere Leiste neu aufgeteilt (Pause-Buttons, Eigene/Gegnerpunkte und Stop etwas schmaler).",
+    ],
+  },
+  {
+    version: "3.1",
+    date: "2026-10-06",
+    changes: ["Markierungen: In den Gruppen-Reitern stehen jetzt beide Schalter (Top und Klatschen) plus Entfernen."],
+  },
+  {
+    version: "3.0",
+    date: "2026-10-06",
+    changes: [
+      "Neu: Markierungen Top-Stimmung und Mitklatschen (lange auf einen Song drücken oder über den Button Markierungen).",
+      "Verwaltungsfenster mit Suche, Anhören, Entfernen und Verschieben zwischen den Gruppen.",
+      "Sichern als markierungen.json in den Musikordner; wird beim Laden der Songs automatisch eingelesen.",
+    ],
+  },
+  {
+    version: "2.7",
+    date: "2026-10-06",
+    changes: [
+      "Heatmap deutlicher: selten gespielte Songs leuchten, oft gespielte werden blasser; Song mit den wenigsten Wiedergaben hat einen hellen Rahmen.",
+    ],
+  },
+  {
+    version: "2.6",
+    date: "2026-10-06",
+    changes: [
+      "Zufall-Buttons umbenannt: Eigene Punkte (Stimmungslieder) und Gegnerpunkte (Durchatmen).",
+    ],
+  },
   {
     version: "2.5",
     date: "2026-10-05",

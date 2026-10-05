@@ -338,3 +338,267 @@ body.h-screen {
   opacity: 1;
   transform: translate(-50%, 0);
 }
+
+/* Treffer und laufender Song bleiben immer voll sichtbar, auch wenn der Song oft gespielt wurde */
+.song-button.search-hit,
+.song-button.is-playing {
+  opacity: 1 !important;
+}
+
+/* ---- Markierungen ---- */
+.song-button {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.song-marks {
+  flex: none;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  color: #fbbf24;
+}
+
+.mark-menu {
+  position: fixed;
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 14rem;
+  max-width: 90vw;
+  padding: 0.6rem;
+  color: #fff;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 0.75rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  animation: panel-in 0.12s ease-out;
+}
+
+.mark-menu-title {
+  padding: 0 0.2rem 0.3rem;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  border-bottom: 1px solid #374151;
+}
+
+.mark-menu-btn,
+.mark-menu-done {
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  background: #374151;
+  border-radius: 0.5rem;
+  transition: background-color 0.15s;
+}
+
+.mark-menu-btn:hover,
+.mark-menu-done:hover {
+  background: #4b5563;
+}
+
+.mark-menu-btn.on {
+  background: #92400e;
+}
+
+.mark-menu-done {
+  text-align: center;
+  background: transparent;
+  color: #9ca3af;
+}
+
+.marks-panel {
+  position: fixed;
+  top: 3.6rem;
+  left: 50%;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: min(52rem, 94vw);
+  max-height: calc(100vh - 14rem);
+  max-height: calc(100dvh - 14rem);
+  padding: 0.8rem;
+  color: #fff;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 0.9rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  transform: translateX(-50%);
+}
+
+.marks-panel:not(.hidden) {
+  animation: marks-in 0.15s ease-out;
+}
+
+@keyframes marks-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -4px);
+  }
+}
+
+.marks-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.marks-head .marks-title {
+  font-weight: 600;
+}
+
+#marks-status {
+  flex: 1;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+#marks-status.marks-status-dirty {
+  color: #fbbf24;
+}
+
+.marks-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.marks-tabs button {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+  background: #374151;
+  border-radius: 0.5rem;
+}
+
+.marks-tabs button.active {
+  background: #2a62b8;
+}
+
+#marks-search {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  color: #000;
+  border-radius: 0.5rem;
+}
+
+.marks-list {
+  flex: 1;
+  min-height: 6rem;
+  overflow-y: auto;
+  border-top: 1px solid #374151;
+  border-bottom: 1px solid #374151;
+}
+
+.marks-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.marks-row.missing {
+  opacity: 0.6;
+}
+
+.marks-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.marks-note {
+  margin-left: 0.3rem;
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+.marks-controls {
+  display: flex;
+  flex: none;
+  gap: 0.4rem;
+}
+
+.mark-play {
+  flex: none;
+  width: 2.2rem;
+  height: 2.2rem;
+  font-size: 0.8rem;
+  background: #374151;
+  border-radius: 999px;
+}
+
+.mark-toggle,
+.mark-remove {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  background: #374151;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+}
+
+.mark-toggle.on {
+  background: #92400e;
+  border-color: #fbbf24;
+}
+
+.mark-remove {
+  color: #fca5a5;
+}
+
+.marks-empty {
+  padding: 1rem;
+  color: #9ca3af;
+}
+
+.marks-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.marks-foot button {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  background: #374151;
+  border-radius: 0.5rem;
+}
+
+.marks-foot #marks-export {
+  background: #2a62b8;
+}
+
+.marks-foot #marks-reset {
+  margin-left: auto;
+  color: #fca5a5;
+}
+
+/* Hinweis in Blau, wenn es keine Fehlermeldung ist */
+.toast.toast-info {
+  background: #1e40af;
+}
+
+/* Untere Leiste: Spaltenbreiten (Timeout/Walk-On, Pausen, Top/Klatschen, Eigene, Gegner, Stop) */
+.bottom-bar {
+  grid-template-columns: 0.85fr 1.9fr 1.15fr 1.2fr 1.2fr 0.95fr;
+}
+
+/* Schmale Spalten: Symbole kompakter, damit der Titel mehr Platz behaelt */
+.song-button {
+  gap: 0.35rem;
+}
+
+.song-marks {
+  font-size: 0.62rem;
+  letter-spacing: 0;
+}
+
+.eq {
+  gap: 1px;
+}
+
+.eq i {
+  width: 2px;
+}

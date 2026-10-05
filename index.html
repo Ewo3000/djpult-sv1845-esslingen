@@ -25,7 +25,7 @@
         <button id="load-songs-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg">
           Songs laden
         </button>
-        <input id="filepicker" type="file" class="hidden" accept="audio/*" multiple webkitdirectory />
+        <input id="filepicker" type="file" class="hidden" accept="audio/*,.json,application/json" multiple webkitdirectory />
         <button id="pairing-toggle" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg">
           Remote koppeln
         </button>
@@ -69,8 +69,10 @@
             <ul class="list-disc list-inside space-y-1">
               <li><strong>Timeout</strong> / <strong>Walk-On</strong>: spielen die Songs aus <code>special_music</code> (<code>_TIMEOUT</code>, <code>_WALKON</code>).</li>
               <li><strong>Pause-Buttons</strong>: einer pro Datei <code>_PAUSE1</code>, <code>_PAUSE2</code> &hellip;, automatisch angelegt.</li>
-              <li><strong>Zufall (eigene Punkte)</strong>: w&auml;hlt einen Song aus Ass/Angriff, Block und den gr&uuml;nen Spalten. Selten gespielte Songs werden stark bevorzugt.</li>
-              <li><strong>Zufall (Gegnerpunkte)</strong>: gleiches Prinzip, aber nur aus Gegner.</li>
+              <li><strong>&#9733; Top-Stimmung / &#128079; Mitklatschen (zuf&auml;llig)</strong>: spielen einen zuf&auml;lligen Song aus der jeweiligen Markierungs-Gruppe (siehe unten).</li>
+              <li><strong>Eigene Punkte (zuf&auml;llig)</strong> &ndash; Stimmungslieder: w&auml;hlt einen Song aus Ass/Angriff, Block und den gr&uuml;nen Spalten. </li>
+              <li><strong>Gegnerpunkte (zuf&auml;llig)</strong> &ndash; Durchatmen: gleiches Prinzip, aber nur aus Gegner.</li>
+              <li><strong>So funktioniert der Zufall:</strong> Es kommen klar die Songs dran, die am seltensten gespielt wurden. Die zuletzt gespielten Songs werden &uuml;bersprungen, und je &ouml;fter ein Song schon lief, desto unwahrscheinlicher wird er.</li>
               <li><strong>Stop</strong>: blendet den Song in ca. 1 Sekunde aus.</li>
             </ul>
           </div>
@@ -80,7 +82,7 @@
               <li><strong>Now Playing</strong> (oben rechts): Titel und Restzeit; bei weniger als 10 Sekunden blinkt die Anzeige.</li>
               <li><strong>Vol</strong>: Lautst&auml;rke-Regler.</li>
               <li><strong>Suche</strong>: Treffer werden hervorgehoben und die Trefferzahl angezeigt. Nach einem Klick auf einen Song leert sich die Suche.</li>
-              <li><strong>Play-Z&auml;hler</strong>: Die Zahl rechts oben am Button zeigt, wie oft der Song gespielt wurde. H&auml;ufiger gespielte Songs sind heller. Die Z&auml;hler bleiben auf dem Ger&auml;t gespeichert; <strong>Reset</strong> setzt alle auf 0.</li>
+              <li><strong>Play-Z&auml;hler</strong>: Die Zahl rechts oben am Button zeigt, wie oft der Song gespielt wurde. Selten gespielte Songs leuchten kr&auml;ftig, oft gespielte werden blasser; der Song mit den wenigsten Wiedergaben der Spalte hat einen hellen Rahmen. So siehst du, was als N&auml;chstes dran ist. Die Z&auml;hler bleiben auf dem Ger&auml;t gespeichert; <strong>Reset</strong> setzt alle auf 0.</li>
               <li><strong>Zoom</strong> &plusmn; ver&auml;ndert die Gr&ouml;&szlig;e der Buttons.</li>
               <li><strong>Kopf ausblenden</strong> gibt mehr Platz f&uuml;r die Songs.</li>
             </ul>
@@ -96,6 +98,16 @@
             <p class="mt-1">Beide Ger&auml;te m&uuml;ssen im selben Netz oder Hotspot sein.</p>
           </div>
           <div>
+            <div class="font-semibold">Markierungen: Top-Stimmung und Mitklatschen</div>
+            <ul class="list-disc list-inside space-y-1">
+              <li><strong>Schnell markieren:</strong> Einen Song im Pult <strong>lange gedr&uuml;ckt halten</strong>. Es &ouml;ffnet sich ein Men&uuml; mit &bdquo;Top-Stimmung&ldquo; und &bdquo;Mitklatschen&ldquo;. Markierte Songs zeigen ein kleines Symbol im Button.</li>
+              <li><strong>Verwalten:</strong> Der Button <strong>Markierungen</strong> oben &ouml;ffnet die Liste. Reiter &bdquo;Alle Songs&ldquo; (mit Suche und &#9654; zum kurzen Anh&ouml;ren, das nicht mitz&auml;hlt), &bdquo;Top-Stimmung&ldquo; und &bdquo;Mitklatschen&ldquo;. In den Gruppen siehst du bei jedem Song beide Schalter (Top und Klatschen) und kannst ihn mit &bdquo;Entfernen&ldquo; herausnehmen oder auch der anderen Gruppe zuordnen.</li>
+              <li><strong>Sichern:</strong> In der Liste auf <strong>Sichern</strong> tippen &rarr; &bdquo;In Dateien sichern&ldquo; &rarr; den Ordner <code>Songs laden</code> (neben <code>music</code> und <code>special_music</code>) in iCloud w&auml;hlen &rarr; Gespeichert wird <code>markierungen.json</code>. iPadOS legt bei jedem Sichern eine neue Datei an (<code>markierungen 2.json</code> &hellip;); beim Laden nimmt die App automatisch die neueste. &Auml;ltere Dateien kannst du in der Dateien-App l&ouml;schen.</li>
+              <li><strong>Wieder laden:</strong> Beim n&auml;chsten &bdquo;Songs laden&ldquo; wird die Datei automatisch eingelesen. Alternativ in der Liste &bdquo;Datei laden&ldquo;.</li>
+              <li>Ein <span class="text-amber-400">&bull;</span> am Button <strong>Markierungen</strong> hei&szlig;t: &Auml;nderungen sind noch nicht gesichert. Die Zuordnung h&auml;ngt am Dateinamen &ndash; wird ein Song umbenannt, geht seine Markierung verloren.</li>
+            </ul>
+          </div>
+          <div>
             <div class="font-semibold">Als App installieren</div>
             <p><strong>iPad/iPhone (Safari):</strong> Teilen-Symbol antippen &rarr; &bdquo;Zum Home-Bildschirm&ldquo; &rarr; &bdquo;Hinzuf&uuml;gen&ldquo;. Danach starten, wie jede App, vom Home-Bildschirm &ndash; im Vollbild. <strong>Android/PC (Chrome):</strong> Men&uuml; &rarr; &bdquo;App installieren&ldquo;.</p>
             <p class="mt-1">Die Songs m&uuml;ssen nach jedem Start der App neu &uuml;ber &bdquo;Songs laden&ldquo; gew&auml;hlt werden.</p>
@@ -106,7 +118,29 @@
           </div>
         </div>
       </div>
-      <!-- Kopfleiste -->
+      <!-- Markierungen verwalten -->
+      <div id="marks-panel" class="marks-panel hidden">
+        <div class="marks-head">
+          <div class="marks-title">Markierungen</div>
+          <div id="marks-status"></div>
+          <button id="marks-close" class="top-btn text-xs">Schließen</button>
+        </div>
+        <div id="marks-tabs" class="marks-tabs">
+          <button data-tab="all">Alle Songs</button>
+          <button data-tab="top">Top-Stimmung</button>
+          <button data-tab="clap">Mitklatschen</button>
+        </div>
+        <input id="marks-search" type="search" placeholder="Song suchen" />
+        <div id="marks-list" class="marks-list"></div>
+        <div class="marks-foot">
+          <button id="marks-export">Sichern</button>
+          <button id="marks-import">Datei laden</button>
+          <button id="marks-reset">Alles zurücksetzen</button>
+          <input id="marks-file" type="file" accept=".json,application/json" class="hidden" />
+        </div>
+      </div>
+
+<!-- Kopfleiste -->
       <div id="top-bar" class="top-bar">
         <div class="top-group">
           <span class="text-gray-400">Zoom</span>
@@ -129,6 +163,7 @@
         </div>
         <span class="top-sep"></span>
         <div class="top-group">
+          <button id="marks-toggle" class="top-btn text-xs" title="Top-Stimmung und Mitklatschen verwalten">Markierungen<span id="marks-dirty" class="hidden text-amber-400">&nbsp;&bull;</span></button>
           <button id="info-toggle" onclick="toggleInfo()" class="top-btn text-xs">Info</button>
           <button id="version-toggle" onclick="toggleVersion()" class="top-btn text-xs text-gray-300">Ver.</button>
           <button id="reset-counts" class="top-btn top-btn-quiet text-xs" title="Alle Play-Zähler auf 0 setzen">Reset</button>
@@ -186,25 +221,39 @@
   </div>
 
   <!-- Untere Leiste mit Spezial-Buttons -->
-  <div class="w-full grid grid-cols-6 justify-between gap-4 bg-gray-800 p-4 rounded-lg mt-2 fixed bottom-0 left-0 z-50">
-      <div class="grid grid-cols-1 mt-4 gap-4 w-full">
-        <button id="btn-timeout"
-          class="bg-[#c99a12] hover:bg-[#b3880f] text-[#1f1300] rounded-xl text-xl px-3 py-3 shadow-md">
-          Timeout
-        </button>
+  <div class="bottom-bar w-full grid gap-3 bg-gray-800 p-4 rounded-lg mt-2 fixed bottom-0 left-0 z-50">
+    <div class="grid grid-cols-1 gap-3 w-full">
+      <button id="btn-timeout"
+        class="bg-[#c99a12] hover:bg-[#b3880f] text-[#1f1300] rounded-xl text-lg px-2 py-2 shadow-md">
+        Timeout
+      </button>
       <button id="btn-walkon"
-        class="bg-[#2a62b8] hover:bg-[#2455a1] rounded-xl text-xl px-3 py-3 shadow-md">
+        class="bg-[#2a62b8] hover:bg-[#2455a1] rounded-xl text-lg px-2 py-2 shadow-md">
         Walk-On
       </button>
     </div>
-    <div id="pause-buttons" class="grid grid-cols-2 mt-4 gap-3 w-full col-span-2"></div>
-    <button onclick="playRandomTrack()" class="px-7 py-7 bg-[#3b3f8f] rounded-xl hover:bg-[#32367d] text-lg shadow-md">
-      Zufall (eigene Punkte)
+    <div id="pause-buttons" class="grid grid-cols-2 gap-3 w-full"></div>
+    <div class="grid grid-cols-1 gap-3 w-full">
+      <button onclick="playRandomMarked('top')" class="bg-[#b45309] hover:bg-[#9a4608] rounded-xl px-2 py-2 shadow-md flex flex-col items-center justify-center leading-tight" title="Zufälliger Song aus Top-Stimmung">
+        <span class="text-base font-semibold">&#9733; Top-Stimmung</span>
+        <span class="text-xs text-amber-100">(zufällig)</span>
+      </button>
+      <button onclick="playRandomMarked('clap')" class="bg-[#0f766e] hover:bg-[#0c625b] rounded-xl px-2 py-2 shadow-md flex flex-col items-center justify-center leading-tight" title="Zufälliger Song aus Mitklatschen">
+        <span class="text-base font-semibold">&#128079; Mitklatschen</span>
+        <span class="text-xs text-teal-100">(zufällig)</span>
+      </button>
+    </div>
+    <button onclick="playRandomTrack()" class="px-3 py-5 bg-[#3b3f8f] rounded-xl hover:bg-[#32367d] shadow-md flex flex-col items-center justify-center leading-tight">
+      <span class="text-xl font-semibold">Eigene Punkte</span>
+      <span class="text-sm text-indigo-200">(zufällig)</span>
+      <span class="text-sm text-indigo-100 mt-2">Stimmungslieder</span>
     </button>
-    <button onclick="playRandomOpponentTrack()" class="px-7 py-7 bg-[#4a4fa8] rounded-xl hover:bg-[#41459a] text-lg shadow-md">
-      Zufall (Gegnerpunkte)
+    <button onclick="playRandomOpponentTrack()" class="px-3 py-5 bg-[#4a4fa8] rounded-xl hover:bg-[#41459a] shadow-md flex flex-col items-center justify-center leading-tight">
+      <span class="text-xl font-semibold">Gegnerpunkte</span>
+      <span class="text-sm text-indigo-200">(zufällig)</span>
+      <span class="text-sm text-indigo-100 mt-2">Durchatmen</span>
     </button>
-    <button onclick="stopAudio()" class="px-7 py-7 bg-[#c93232] rounded-xl hover:bg-[#b02a2a] text-lg shadow-md">
+    <button onclick="stopAudio()" class="px-4 py-7 bg-[#c93232] rounded-xl hover:bg-[#b02a2a] text-lg shadow-md">
       Stop
     </button>
   </div>
