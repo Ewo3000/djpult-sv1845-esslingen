@@ -810,6 +810,7 @@ function playAudio(file, displayTitle = "", categoryKey = null, songId = null) {
   currentAudio = el;
   nowPlaying.category = categoryKey || null;
   nowPlayingId = songId || null;
+  rememberPlayed(songId);
   incrementPlayCount(songId || displayTitle || file, categoryKey);
   updatePlayingHighlight();
   showNowPlaying(displayTitle);
@@ -1332,93 +1333,79 @@ function initVersionInfo() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Zufallsauswahl: selten gespielte Songs werden klar bevorzugt
+// ---------------------------------------------------------------------------
+const RECENT_SONG_LIMIT = 4; // so viele zuletzt gespielte Songs werden uebersprungen
+const RANDOM_WEIGHT_POWER = 4; // je hoeher, desto staerker die Bevorzugung
+const recentSongIds = [];
+
+function rememberPlayed(id) {
+  if (!id) return;
+  const index = recentSongIds.indexOf(id);
+  if (index !== -1) recentSongIds.splice(index, 1);
+  recentSongIds.push(id);
+  while (recentSongIds.length > RECENT_SONG_LIMIT) recentSongIds.shift();
+}
+
+// Waehlt einen Song aus der Liste:
+// 1. Zuletzt gespielte Songs werden uebersprungen (sofern genug andere da sind).
+// 2. Das Gewicht richtet sich nach dem Abstand zum am seltensten gespielten Song der Auswahl:
+//    gleich oft wie der seltenste = Gewicht 1, einmal oefter = 1/16, zweimal = 1/81 usw.
+//    Dadurch bleibt die Bevorzugung auch dann scharf, wenn alle Songs schon oft liefen.
+function pickWeightedSong(songs) {
+  if (!songs.length) return null;
+  const skip = Math.min(RECENT_SONG_LIMIT, songs.length - 1);
+  const recent = skip > 0 ? recentSongIds.slice(-skip) : [];
+  let candidates = songs.filter((song) => !recent.includes(song.id));
+  if (!candidates.length) candidates = songs;
+
+  const counts = candidates.map((song) => songPlayCounts[song.id] || 0);
+  const minCount = Math.min(...counts);
+  const weights = counts.map((count) =>
+    Math.max(0.0005, 1 / Math.pow(1 + (count - minCount), RANDOM_WEIGHT_POWER))
+  );
+  const total = weights.reduce((sum, w) => sum + w, 0);
+  let r = Math.random() * total;
+  for (let i = 0; i < candidates.length; i += 1) {
+    r -= weights[i];
+    if (r <= 0) return candidates[i];
+  }
+  return candidates[candidates.length - 1];
+}
+
 function playRandomTrack() {
   const candidateCategories = ["ass_angriff", "block", "sonstiges", "noch_mehr", "noch_mehr2"];
-  const pool = [];
-  candidateCategories.forEach((key) => {
-    const cat = categories[key];
-    if (!cat || !cat.items || cat.items.length === 0) return;
-    cat.items.forEach((song) => {
-      const count = songPlayCounts[song.id] || 0;
-      // Noch staerkere Gewichtung: selten gespielte Titel werden deutlich bevorzugt
-      // Gewicht = 1 / (1 + count)^3, Mindestgewicht 0.01
-      const weight = Math.max(0.01, 1 / Math.pow(1 + count, 3));
-      pool.push({ song, category: key, weight });
-    });
-  });
-  if (pool.length === 0) {
+  const songs = candidateCategories.flatMap((key) => (categories[key] ? categories[key].items : []));
+  const chosen = pickWeightedSong(songs);
+  if (!chosen) {
     alert("Keine Songs in den zufaelligen Kategorien geladen.");
     return;
   }
-  const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0);
-  const r = Math.random() * totalWeight;
-  let acc = 0;
-  let chosen = pool[0];
-  for (const item of pool) {
-    acc += item.weight;
-    if (r <= acc) {
-      chosen = item;
-      break;
-    }
-  }
-  playAudio(chosen.song.url, chosen.song.display, chosen.category, chosen.song.id);
+  playAudio(chosen.url, chosen.display, chosen.category, chosen.id);
 }
 
-// Zufaelliger Song aus einer Markierungs-Gruppe ("top" oder "clap");
-// selten gespielte Songs werden wie beim normalen Zufall bevorzugt.
+// Zufaelliger Song aus einer Markierungs-Gruppe ("top" oder "clap")
 function playRandomMarked(group) {
   const def = MARK_GROUPS[group];
   if (!def) return;
-  const pool = getAllSongs()
-    .filter((song) => marks[group].has(song.id))
-    .map((song) => {
-      const count = songPlayCounts[song.id] || 0;
-      return { song, weight: Math.max(0.01, 1 / Math.pow(1 + count, 3)) };
-    });
-  if (pool.length === 0) {
+  const songs = getAllSongs().filter((song) => marks[group].has(song.id));
+  const chosen = pickWeightedSong(songs);
+  if (!chosen) {
     showToast(`Noch keine geladenen Songs in „${def.label}“ markiert.`);
     return;
   }
-  const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0);
-  const r = Math.random() * totalWeight;
-  let acc = 0;
-  let chosen = pool[pool.length - 1];
-  for (const item of pool) {
-    acc += item.weight;
-    if (r <= acc) {
-      chosen = item;
-      break;
-    }
-  }
-  playAudio(chosen.song.url, chosen.song.display, chosen.song.category, chosen.song.id);
+  playAudio(chosen.url, chosen.display, chosen.category, chosen.id);
 }
 
 function playRandomOpponentTrack() {
   const cat = categories["gegner"];
-  const pool = [];
-  if (cat && Array.isArray(cat.items)) {
-    cat.items.forEach((song) => {
-      const count = songPlayCounts[song.id] || 0;
-      const weight = Math.max(0.01, 1 / Math.pow(1 + count, 3));
-      pool.push({ song, weight });
-    });
-  }
-  if (pool.length === 0) {
+  const chosen = pickWeightedSong(cat && Array.isArray(cat.items) ? cat.items : []);
+  if (!chosen) {
     alert("Keine Songs in der Gegner-Kategorie geladen.");
     return;
   }
-  const totalWeight = pool.reduce((sum, item) => sum + item.weight, 0);
-  const r = Math.random() * totalWeight;
-  let acc = 0;
-  let chosen = pool[0];
-  for (const item of pool) {
-    acc += item.weight;
-    if (r <= acc) {
-      chosen = item;
-      break;
-    }
-  }
-  playAudio(chosen.song.url, chosen.song.display, "gegner", chosen.song.id);
+  playAudio(chosen.url, chosen.display, "gegner", chosen.id);
 }
 
 // -----------------------------
