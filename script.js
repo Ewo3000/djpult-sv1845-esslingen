@@ -98,11 +98,11 @@ function handleFiles(fileList) {
   const files = Array.from(fileList || []);
   let toggle = 0;
 
-  let marksFile = null;
+  const marksFiles = [];
 
   files.forEach((file) => {
-    if (file.name.toLowerCase() === MARKS_FILENAME) {
-      marksFile = file;
+    if (MARKS_FILE_PATTERN.test(file.name)) {
+      marksFiles.push(file);
       return;
     }
     const relPath = file.webkitRelativePath || file.name;
@@ -164,7 +164,7 @@ function handleFiles(fileList) {
   collapseHeader();
   sendSongsListToRemote();
   resetPageScroll();
-  if (marksFile) loadMarksFromFile(marksFile);
+  if (marksFiles.length) loadNewestMarksFile(marksFiles);
 }
 
 // Nach Dateiauswahl/Layoutwechsel kann Safari die Seite nach oben/unten verschoben lassen.
@@ -223,6 +223,7 @@ const MARK_GROUPS = {
 };
 const MARKS_KEY = "songMarks";
 const MARKS_FILENAME = "markierungen.json";
+const MARKS_FILE_PATTERN = /^markierungen.*\.json$/i; // auch "markierungen 2.json" usw.
 const LONG_PRESS_MS = 600;
 let marks = { top: new Set(), clap: new Set() };
 let marksDirty = false;
@@ -255,7 +256,11 @@ function saveMarks() {
 
 function marksToJson() {
   const sorted = (set) => [...set].sort((a, b) => a.localeCompare(b, "de"));
-  return JSON.stringify({ version: 1, top: sorted(marks.top), clap: sorted(marks.clap) }, null, 2);
+  return JSON.stringify(
+    { version: 1, saved: new Date().toISOString(), top: sorted(marks.top), clap: sorted(marks.clap) },
+    null,
+    2
+  );
 }
 
 function applyMarksData(data, mode) {
@@ -508,7 +513,7 @@ async function exportMarks() {
   const file = new File([marksToJson()], MARKS_FILENAME, { type: "application/json" });
   try {
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: "DJ-Pult Markierungen" });
+      await navigator.share({ files: [file] });
       marksDirty = false;
       saveMarks();
       updateMarksStatus();
@@ -540,7 +545,7 @@ function afterMarksChangedBulk() {
   renderMarksPanel();
 }
 
-function importMarksFromText(text, source) {
+function importMarksFromText(text, source, extraInfo = "") {
   let data;
   try {
     data = JSON.parse(text);
@@ -555,9 +560,41 @@ function importMarksFromText(text, source) {
   afterMarksChangedBulk();
   showToast(
     `Markierungen ${source}: ${marks.top.size} Top-Stimmung, ${marks.clap.size} Mitklatschen` +
+      extraInfo +
       (merged ? " (mit deinen ungesicherten Änderungen zusammengeführt)" : ""),
     "info"
   );
+}
+
+// Liest alle gefundenen Markierungsdateien und uebernimmt die zuletzt gesicherte
+// (Zeitstempel in der Datei, ersatzweise Aenderungsdatum der Datei).
+function loadNewestMarksFile(files) {
+  Promise.all(
+    files.map((file) =>
+      file
+        .text()
+        .then((text) => {
+          const data = JSON.parse(text);
+          const saved = Date.parse(data && data.saved) || file.lastModified || 0;
+          return { text, saved, name: file.name };
+        })
+        .catch(() => null)
+    )
+  )
+    .then((entries) => {
+      const valid = entries.filter(Boolean);
+      if (!valid.length) {
+        showToast("Markierungsdatei konnte nicht gelesen werden.");
+        return;
+      }
+      valid.sort((a, b) => b.saved - a.saved);
+      const info = valid.length > 1 ? ` (neueste von ${valid.length} Dateien: ${valid[0].name})` : "";
+      importMarksFromText(valid[0].text, "geladen", info);
+    })
+    .catch((err) => {
+      console.error(err);
+      showToast("Markierungsdatei konnte nicht gelesen werden.");
+    });
 }
 
 function loadMarksFromFile(file) {
