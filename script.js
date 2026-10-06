@@ -1727,7 +1727,7 @@ function playAudio(file, displayTitle = "", categoryKey = null, songId = null) {
   nowPlaying.category = categoryKey || null;
   nowPlayingId = songId || null;
   currentWave = lookupWave(songId);
-  rememberPlayed(songId);
+  if (categoryKey) rememberPlayed(songId); // Vorhoeren (ohne Kategorie) zaehlt nicht als gespielt
   incrementPlayCount(songId || displayTitle || file, categoryKey);
   updatePlayingHighlight();
   showNowPlaying(displayTitle);
