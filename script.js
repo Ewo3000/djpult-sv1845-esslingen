@@ -6,7 +6,7 @@ let currentAudio = null;
 let volumeLevel = 1.0;
 let fadeIntervalId = null;
 let nowPlaying = { title: "", duration: 0, category: null };
-let nowPlayingEls = { box: null, title: null, eta: null, elapsed: null, bar: null };
+let nowPlayingEls = { box: null, title: null, eta: null, elapsed: null, bar: null, progress: null, chartWrap: null, chart: null, drop: null };
 let nowPlayingId = null; // ID des laufenden Songs (fuer die Hervorhebung im Raster)
 const NOW_PLAYING_WARNING_THRESHOLD = 10; // Sekunden
 let songPlayCounts = {};
@@ -99,8 +99,14 @@ function handleFiles(fileList) {
   let toggle = 0;
 
   const marksFiles = [];
+  let wavesFile = null;
+  waveforms = {};
 
   files.forEach((file) => {
+    if (file.name.toLowerCase() === WAVEFORMS_FILENAME) {
+      wavesFile = file;
+      return;
+    }
     if (MARKS_FILE_PATTERN.test(file.name)) {
       marksFiles.push(file);
       return;
@@ -155,6 +161,7 @@ function handleFiles(fileList) {
       name: file.name,
       display: cleanName(file.name),
       category: key,
+      size: file.size, // fuer die Zuordnung der Kurve (waveforms.json)
       url: URL.createObjectURL(file),
     });
   });
@@ -165,6 +172,22 @@ function handleFiles(fileList) {
   sendSongsListToRemote();
   resetPageScroll();
   if (marksFiles.length) loadNewestMarksFile(marksFiles);
+
+  // Kurven zuordnen und bei fehlenden Kurven kurz darauf hinweisen
+  const finishWaves = () => {
+    const { total, missing } = applyWaveforms();
+    setTimeout(() => announceWaveforms(!!wavesFile, total, missing), 3500);
+  };
+  if (wavesFile) {
+    loadWaveformsFile(wavesFile)
+      .catch((err) => {
+        console.error("waveforms.json unlesbar:", err);
+        showToast("Die Datei waveforms.json konnte nicht gelesen werden.");
+      })
+      .then(finishWaves);
+  } else {
+    finishWaves();
+  }
 }
 
 // Nach Dateiauswahl/Layoutwechsel kann Safari die Seite nach oben/unten verschoben lassen.
@@ -874,6 +897,10 @@ function buildSongButton(song, cat, range) {
   const markEl = createMarksEl(song.id);
   if (markEl) btn.append(eq, name, markEl, badge);
   else btn.append(eq, name, badge);
+  const dropBadge = document.createElement("span");
+  dropBadge.className = "drop-badge hidden";
+  dropBadge.dataset.base = "drop-badge";
+  btn.appendChild(dropBadge);
 
   // Langer Druck oeffnet das Markierungs-Menue; der folgende Klick spielt dann nicht ab
   let pressTimer = null;
@@ -979,6 +1006,165 @@ function handlePlaybackFailure(err, displayTitle) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Kurven und Drop-Countdown
+// Daten kommen aus waveforms.json (erzeugt mit tools/analyse.html) im Musikordner.
+// ---------------------------------------------------------------------------
+const WAVEFORMS_FILENAME = "waveforms.json";
+const DROP_NEAR_S = 5; // ab so vielen Sekunden vor dem Drop erscheint der Countdown
+const DROP_WARN_S = 3; // ab hier groesser und rot
+const DROP_FLASH_S = 1.2; // so lange bleibt "DROP!" stehen
+let waveforms = {};
+let currentWave = null;
+let nowPlayingTimer = null;
+
+function decodeCurve(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function loadWaveformsFile(file) {
+  return file.text().then((text) => {
+    const data = JSON.parse(text);
+    if (!data || data.version !== 1 || typeof data.songs !== "object") {
+      throw new Error("Unbekanntes Format");
+    }
+    waveforms = {};
+    Object.entries(data.songs).forEach(([name, entry]) => {
+      if (!entry || typeof entry.curve !== "string") return;
+      waveforms[name] = {
+        size: entry.size,
+        duration: entry.duration,
+        curve: decodeCurve(entry.curve),
+        drops: Array.isArray(entry.drops) ? entry.drops : [],
+      };
+    });
+  });
+}
+
+// Ordnet jedem Song seine Kurve zu (nur wenn Dateiname und Groesse passen)
+function applyWaveforms() {
+  const songs = getAllSongs();
+  let missing = 0;
+  songs.forEach((song) => {
+    const wave = waveforms[song.id];
+    song.wave = wave && wave.size === song.size ? wave : null;
+    if (!song.wave) missing += 1;
+  });
+  return { total: songs.length, missing };
+}
+
+function announceWaveforms(hasFile, total, missing) {
+  if (!total || !missing) return;
+  showToast(
+    hasFile
+      ? `${missing} von ${total} Songs haben noch keine Kurve. Bitte die Song-Analyse ausführen (Info → Dateien).`
+      : "Keine Kurven gefunden (waveforms.json fehlt im Ordner). Bitte die Song-Analyse ausführen (Info → Dateien).",
+    "info"
+  );
+}
+
+function lookupWave(songId) {
+  if (!songId) return null;
+  const song = getAllSongs().find((item) => item.id === songId);
+  return song && song.wave ? song.wave : null;
+}
+
+// text: volle Anzeige in Now Playing, shortText: kurze Anzeige im Song-Button
+function setDropState(state, text, shortText = text) {
+  const targets = [nowPlayingEls.drop, ...document.querySelectorAll(".song-button.is-playing .drop-badge")];
+  targets.forEach((el) => {
+    if (!el) return;
+    const base = el.dataset.base || "drop-badge";
+    el.className = state ? `${base} ${state}` : `${base} hidden`;
+    el.textContent = state ? (base === "np-drop" ? text : shortText) : "";
+  });
+}
+
+function drawNowPlayingChart(currentTime) {
+  const { chart } = nowPlayingEls;
+  if (!chart || !currentWave) return;
+  const cssWidth = chart.clientWidth;
+  const cssHeight = chart.clientHeight;
+  if (!cssWidth || !cssHeight) return;
+  const ratio = window.devicePixelRatio || 1;
+  if (chart.width !== Math.round(cssWidth * ratio) || chart.height !== Math.round(cssHeight * ratio)) {
+    chart.width = Math.round(cssWidth * ratio);
+    chart.height = Math.round(cssHeight * ratio);
+  }
+  const ctx = chart.getContext("2d");
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+  const curve = currentWave.curve;
+  const duration = currentWave.duration || (audioEl && audioEl.duration) || curve.length / 2;
+  const progress = Math.max(0, Math.min(1, currentTime / duration));
+  const barWidth = cssWidth / curve.length;
+  for (let i = 0; i < curve.length; i += 1) {
+    const height = Math.max(2, (curve[i] / 255) * (cssHeight - 6));
+    ctx.fillStyle = (i + 0.5) / curve.length <= progress ? "#60a5fa" : "#4b5563";
+    ctx.fillRect(i * barWidth + 0.5, cssHeight - height, Math.max(1, barWidth - 1), height);
+  }
+
+  // Drops: der naechste (erste noch kommende) kraeftig, die uebrigen dezent
+  let nextMarked = false;
+  currentWave.drops.forEach((drop) => {
+    const x = Math.round((drop[0] / duration) * cssWidth);
+    const upcoming = drop[0] > currentTime;
+    const isNext = upcoming && !nextMarked;
+    if (isNext) nextMarked = true;
+    ctx.fillStyle = isNext ? "#fbbf24" : upcoming ? "#92400e" : "rgba(146, 64, 14, 0.5)";
+    ctx.fillRect(x - 1, 0, 2, cssHeight);
+    ctx.beginPath();
+    ctx.moveTo(x - 4, 0);
+    ctx.lineTo(x + 4, 0);
+    ctx.lineTo(x, 6);
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  // Abspiel-Strich
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(Math.round(progress * cssWidth) - 1, 0, 2, cssHeight);
+}
+
+function tickNowPlaying() {
+  if (!currentWave || !audioEl) return;
+  const time = audioEl.currentTime || 0;
+  drawNowPlayingChart(time);
+  // Countdown nur fuer den ersten Drop des Songs
+  const first = currentWave.drops[0];
+  if (!first) {
+    setDropState(null, "");
+    return;
+  }
+  const remaining = first[0] - time;
+  if (remaining > DROP_NEAR_S) setDropState(null, "");
+  else if (remaining > DROP_WARN_S) setDropState("near", `Drop in ${Math.ceil(remaining)}`, `▼${Math.ceil(remaining)}`);
+  else if (remaining > 0) setDropState("warn", `Drop in ${Math.ceil(remaining)}`, `▼${Math.ceil(remaining)}`);
+  else if (remaining > -DROP_FLASH_S) setDropState("now", "DROP!");
+  else setDropState(null, "");
+}
+
+function stopNowPlayingTicker() {
+  clearInterval(nowPlayingTimer);
+  nowPlayingTimer = null;
+  setDropState(null, "");
+}
+
+function startNowPlayingTicker() {
+  stopNowPlayingTicker();
+  const hasWave = !!currentWave;
+  const { chartWrap, progress } = nowPlayingEls;
+  if (chartWrap) chartWrap.classList.toggle("hidden", !hasWave);
+  if (progress) progress.classList.toggle("hidden", hasWave);
+  if (!hasWave) return;
+  tickNowPlaying();
+  nowPlayingTimer = setInterval(tickNowPlaying, 100);
+}
+
 function playAudio(file, displayTitle = "", categoryKey = null, songId = null) {
   const el = getAudioElement();
   if (!el) return;
@@ -1007,10 +1193,12 @@ function playAudio(file, displayTitle = "", categoryKey = null, songId = null) {
   currentAudio = el;
   nowPlaying.category = categoryKey || null;
   nowPlayingId = songId || null;
+  currentWave = lookupWave(songId);
   rememberPlayed(songId);
   incrementPlayCount(songId || displayTitle || file, categoryKey);
   updatePlayingHighlight();
   showNowPlaying(displayTitle);
+  startNowPlayingTicker();
   resumeAudioContext();
   el.onloadedmetadata = () => {
     updateNowPlayingDuration(el);
@@ -1165,6 +1353,8 @@ function clearNowPlaying() {
   const { box, eta, bar } = nowPlayingEls;
   nowPlaying = { title: "", duration: 0, category: null };
   nowPlayingId = null;
+  currentWave = null;
+  stopNowPlayingTicker();
   updatePlayingHighlight();
   if (bar) bar.style.width = "0";
   if (eta) eta.textContent = "--:--";
@@ -1210,6 +1400,10 @@ document.addEventListener("DOMContentLoaded", () => {
     eta: document.getElementById("now-playing-eta"),
     elapsed: document.getElementById("now-playing-elapsed"),
     bar: document.getElementById("now-playing-bar"),
+    progress: document.querySelector("#now-playing .np-progress"),
+    chartWrap: document.getElementById("np-chart-wrap"),
+    chart: document.getElementById("np-chart"),
+    drop: document.getElementById("np-drop"),
   };
   headerEls = {
     block: document.getElementById("header-block"),

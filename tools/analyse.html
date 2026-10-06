@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DJ Pult – Song-Analyse</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; background: #111827; color: #e5e7eb; line-height: 1.5; }
+    main { max-width: 52rem; margin: 0 auto; padding: 1.5rem 1rem 4rem; }
+    h1 { font-size: 1.6rem; margin: 0 0 0.5rem; }
+    h2 { font-size: 1.1rem; margin: 1.6rem 0 0.4rem; }
+    p, li { color: #d1d5db; }
+    code { padding: 0.05rem 0.35rem; font-size: 0.9em; color: #fde68a; background: rgba(255,255,255,.08); border-radius: 0.3rem; }
+    button { font: inherit; cursor: pointer; border: 0; border-radius: 0.6rem; padding: 0.7rem 1.2rem; color: #fff; background: #2a62b8; }
+    button:hover { background: #2455a1; }
+    button:disabled { opacity: .5; cursor: default; }
+    .secondary { background: #374151; }
+    .box { margin-top: 1rem; padding: 0.8rem 1rem; background: #1f2937; border: 1px solid #374151; border-radius: 0.8rem; }
+    .warn { border-color: #92400e; background: rgba(146,64,14,.25); color: #fde68a; }
+    .ok { border-color: #166534; background: rgba(22,101,52,.25); color: #bbf7d0; }
+    .err { border-color: #991b1b; background: rgba(153,27,27,.25); color: #fecaca; }
+    .progress { height: 0.7rem; margin-top: 0.8rem; overflow: hidden; background: #374151; border-radius: 999px; }
+    .progress > div { height: 100%; width: 0; background: #60a5fa; transition: width .2s; }
+    #log { margin-top: 0.8rem; max-height: 22rem; overflow-y: auto; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+    #log div { display: flex; justify-content: space-between; gap: 1rem; padding: 0.15rem 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+    #log .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #log .info { flex: none; color: #9ca3af; }
+    #log .fail .info { color: #fca5a5; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Song-Analyse für das DJ-Pult</h1>
+  <p>Dieses Werkzeug berechnet für jeden Song die <strong>Lautstärkekurve</strong> und erkennt den <strong>Drop</strong>. Das Ergebnis wird als <code>waveforms.json</code> gespeichert. Das DJ-Pult liest die Datei beim Laden der Songs automatisch ein und zeigt Kurve und Drop-Countdown an.</p>
+  <p>Alles läuft auf diesem Rechner, es wird nichts hochgeladen.</p>
+
+  <h2>So geht's</h2>
+  <ol>
+    <li>Unten auf <strong>Ordner wählen und starten</strong> klicken und den Ordner <code>Songs laden</code> wählen (darin liegen <code>music</code> und <code>special_music</code>). Der Browser fragt, ob er den Ordner ändern darf: erlauben.</li>
+    <li>Die Analyse läuft. Es werden nur <strong>neue oder geänderte</strong> Songs berechnet, schon vorhandene bleiben unverändert.</li>
+    <li>Am Ende liegt die Datei <code>waveforms.json</code> im gewählten Ordner. iCloud überträgt sie zum iPad. Dort beim nächsten „Songs laden“ den Ordner wie gewohnt wählen.</li>
+  </ol>
+  <p>Immer wenn du neue Songs hinzufügst oder welche austauschst, dieses Werkzeug erneut laufen lassen. Das DJ-Pult weist dich beim Laden darauf hin, wenn Songs ohne Kurve da sind.</p>
+
+  <p><button id="pick">Ordner wählen und starten</button></p>
+  <div id="support" class="box warn hidden"></div>
+
+  <div id="progressBox" class="hidden">
+    <div id="status" class="box">Bereit.</div>
+    <div class="progress"><div id="bar"></div></div>
+    <div id="log"></div>
+  </div>
+  <div id="result" class="box hidden"></div>
+  <p id="fallbackRow" class="hidden"><button id="download" class="secondary">waveforms.json herunterladen</button> <span style="color:#9ca3af">Diese Datei danach in den Ordner <code>Songs laden</code> legen.</span></p>
+</main>
+
+<script src="analyse-core.js"></script>
+<script>
+(function () {
+  const AUDIO = /\.(mp3|flac|wav|ogg)$/i;
+  const FORMAT_VERSION = 1;
+  const $ = (id) => document.getElementById(id);
+
+  function encodeCurve(curve) {
+    let binary = "";
+    const chunk = 0x8000;
+    for (let i = 0; i < curve.length; i += chunk) {
+      binary += String.fromCharCode.apply(null, curve.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
+
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  async function analyseFile(file) {
+    const buffer = await file.arrayBuffer();
+    const context = new OfflineAudioContext(1, 1, 22050);
+    const audio = await context.decodeAudioData(buffer);
+    const channels = [];
+    for (let c = 0; c < audio.numberOfChannels; c += 1) channels.push(audio.getChannelData(c));
+    const result = DjAnalyse.analyzeSamples(channels, audio.sampleRate);
+    return {
+      size: file.size,
+      duration: result.duration,
+      curve: encodeCurve(result.curve),
+      drops: result.drops.map((d) => [d.time, d.confidence]),
+    };
+  }
+
+  // entries: [{ name, getFile: async () => File }], existing: { name: eintrag }
+  async function analyseEntries(entries, existing, onProgress) {
+    const songs = {};
+    const stats = { analysed: 0, kept: 0, failed: 0, removed: 0 };
+    const names = new Set(entries.map((e) => e.name));
+    stats.removed = Object.keys(existing || {}).filter((name) => !names.has(name)).length;
+    let done = 0;
+    for (const entry of entries) {
+      let info = "";
+      let state = "ok";
+      try {
+        const file = await entry.getFile();
+        const old = existing && existing[entry.name];
+        if (old && old.size === file.size && old.curve) {
+          songs[entry.name] = old;
+          stats.kept += 1;
+          info = "unverändert";
+        } else {
+          const started = performance.now();
+          songs[entry.name] = await analyseFile(file);
+          stats.analysed += 1;
+          const first = songs[entry.name].drops[0];
+          info = (first ? `Drop ${first[0].toFixed(1)} s` : "kein Drop") + ` · ${Math.round((performance.now() - started) / 100) / 10} s`;
+        }
+      } catch (err) {
+        stats.failed += 1;
+        state = "fail";
+        info = "Fehler: " + (err && err.message ? err.message : err);
+      }
+      done += 1;
+      if (onProgress) onProgress({ done, total: entries.length, name: entry.name, info, state });
+      await tick();
+    }
+    return { songs, stats };
+  }
+
+  function buildJson(songs) {
+    return JSON.stringify({ version: FORMAT_VERSION, generated: new Date().toISOString(), songs });
+  }
+
+  function showProgress(p) {
+    $("status").textContent = `${p.done} von ${p.total} Songs · ${p.name}`;
+    $("bar").style.width = `${(p.done / p.total) * 100}%`;
+    const row = document.createElement("div");
+    if (p.state === "fail") row.className = "fail";
+    row.innerHTML = '<span class="name"></span><span class="info"></span>';
+    row.firstChild.textContent = p.name;
+    row.lastChild.textContent = p.info;
+    $("log").appendChild(row);
+    $("log").scrollTop = $("log").scrollHeight;
+  }
+
+  function showResult(kind, html) {
+    const box = $("result");
+    box.className = `box ${kind}`;
+    box.innerHTML = html;
+  }
+
+  function summary(stats, total) {
+    return `<strong>Fertig.</strong> ${total} Songs: ${stats.analysed} neu berechnet, ${stats.kept} unverändert` +
+      (stats.removed ? `, ${stats.removed} nicht mehr vorhanden (entfernt)` : "") +
+      (stats.failed ? `, <strong>${stats.failed} mit Fehler</strong>` : "") + ".";
+  }
+
+  let pendingDownload = null;
+
+  async function runWithDirectoryPicker() {
+    const root = await window.showDirectoryPicker({ mode: "readwrite" });
+    let musicDir;
+    try {
+      musicDir = await root.getDirectoryHandle("music");
+    } catch (err) {
+      showResult("err", "Im gewählten Ordner gibt es keinen Unterordner <code>music</code>. Bitte den Ordner <code>Songs laden</code> wählen.");
+      return;
+    }
+    const entries = [];
+    for await (const [name, handle] of musicDir.entries()) {
+      if (handle.kind === "file" && AUDIO.test(name)) entries.push({ name, getFile: () => handle.getFile() });
+    }
+    entries.sort((a, b) => a.name.localeCompare(b.name, "de"));
+    let existing = {};
+    try {
+      const file = await (await root.getFileHandle("waveforms.json")).getFile();
+      const data = JSON.parse(await file.text());
+      if (data && data.version === FORMAT_VERSION && data.songs) existing = data.songs;
+    } catch (err) { /* noch keine Datei vorhanden */ }
+
+    $("progressBox").classList.remove("hidden");
+    $("log").innerHTML = "";
+    const { songs, stats } = await analyseEntries(entries, existing, showProgress);
+    const text = buildJson(songs);
+    const handle = await root.getFileHandle("waveforms.json", { create: true });
+    const writable = await handle.createWritable();
+    await writable.write(text);
+    await writable.close();
+    showResult(stats.failed ? "warn" : "ok", summary(stats, entries.length) + ` Die Datei <code>waveforms.json</code> (${Math.round(text.length / 1024)} KB) wurde im Ordner gespeichert.`);
+  }
+
+  // Ersatz fuer Browser ohne Ordner-Schreibzugriff (z. B. Safari/Firefox): Ordner lesen, Datei herunterladen
+  function runWithInput() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.webkitdirectory = true;
+    input.multiple = true;
+    input.addEventListener("change", async () => {
+      const files = Array.from(input.files || []);
+      const entries = files
+        .filter((f) => AUDIO.test(f.name) && /(^|[\\/])music[\\/]/i.test(f.webkitRelativePath || ""))
+        .map((f) => ({ name: f.name, getFile: async () => f }))
+        .sort((a, b) => a.name.localeCompare(b.name, "de"));
+      if (!entries.length) {
+        showResult("err", "Im gewählten Ordner wurden keine Songs im Unterordner <code>music</code> gefunden.");
+        return;
+      }
+      let existing = {};
+      const old = files.find((f) => f.name.toLowerCase() === "waveforms.json");
+      if (old) {
+        try {
+          const data = JSON.parse(await old.text());
+          if (data && data.version === FORMAT_VERSION && data.songs) existing = data.songs;
+        } catch (err) { /* ignorieren */ }
+      }
+      $("progressBox").classList.remove("hidden");
+      $("log").innerHTML = "";
+      const { songs, stats } = await analyseEntries(entries, existing, showProgress);
+      pendingDownload = buildJson(songs);
+      $("fallbackRow").classList.remove("hidden");
+      showResult(stats.failed ? "warn" : "ok", summary(stats, entries.length) + " Bitte die Datei herunterladen und in den Ordner <code>Songs laden</code> legen.");
+    });
+    input.click();
+  }
+
+  $("download").addEventListener("click", () => {
+    if (!pendingDownload) return;
+    const url = URL.createObjectURL(new Blob([pendingDownload], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "waveforms.json";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  });
+
+  $("pick").addEventListener("click", async () => {
+    $("result").className = "box hidden";
+    $("pick").disabled = true;
+    try {
+      if (window.showDirectoryPicker) await runWithDirectoryPicker();
+      else runWithInput();
+    } catch (err) {
+      if (!(err && err.name === "AbortError")) showResult("err", "Fehler: " + (err && err.message ? err.message : err));
+    } finally {
+      $("pick").disabled = false;
+    }
+  });
+
+  if (!window.showDirectoryPicker) {
+    $("support").classList.remove("hidden");
+    $("support").innerHTML = "Dieser Browser kann nicht direkt in den Ordner schreiben. Das Werkzeug funktioniert trotzdem: Es liest den Ordner und bietet am Ende die Datei zum <strong>Herunterladen</strong> an. Am bequemsten geht es mit <strong>Chrome oder Edge</strong>.";
+  }
+
+  window.DjAnalyseTool = { analyseEntries, buildJson, encodeCurve };
+})();
+</script>
+</body>
+</html>

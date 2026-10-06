@@ -36,12 +36,18 @@
       </div>
       <!-- Now Playing Banner -->
       <div id="now-playing" class="fixed top-2 right-2 z-40 bg-gray-800 text-white text-sm px-3 py-2 rounded-xl shadow hidden w-72 max-w-sm">
-        <div id="now-playing-title" class="font-semibold truncate">--</div>
+        <div class="np-head">
+          <div id="now-playing-title" class="font-semibold truncate">--</div>
+          <div id="np-drop" class="np-drop hidden" data-base="np-drop"></div>
+        </div>
         <div class="np-times">
           <span><span class="np-label">Rest</span> <span id="now-playing-eta">--:--</span></span>
           <span><span class="np-label">Gespielt</span> <span id="now-playing-elapsed">0:00</span></span>
         </div>
         <div class="np-progress"><div id="now-playing-bar" class="np-progress-bar"></div></div>
+        <div id="np-chart-wrap" class="np-chart hidden">
+          <canvas id="np-chart"></canvas>
+        </div>
       </div>
       <!-- Info / Release Notes -->
       <div id="version-panel" class="fixed top-10 right-10 bg-gray-800 text-white text-xs px-3 py-2 rounded shadow hidden z-50 w-72 panel-max overflow-y-auto">
@@ -102,7 +108,8 @@
               <li><strong>Stop:</strong> blendet den Song aus.</li>
             </ul>
             <h3>Oben rechts: Now Playing</h3>
-            <p>Titel, Restzeit und ein Balken. Bei weniger als 10 Sekunden Restzeit wird die Anzeige rot.</p>
+            <p>Titel, Rest- und gespielte Zeit. Bei weniger als 10 Sekunden Restzeit wird die Anzeige rot.</p>
+            <p>Hat ein Song eine <strong>Kurve</strong> (siehe Reiter „Dateien“), zeigt Now Playing den Lautstärkeverlauf des ganzen Songs mit Abspiel-Strich. Der <strong>orange Strich</strong> ist der erste Drop. <strong>5 Sekunden davor</strong> erscheint „Drop in 5“, ab 3 Sekunden größer und rot, im Moment des Drops kurz „DROP!“. Dasselbe als kleines Schild oben am laufenden Song-Button.</p>
           </section>
 
           <section data-info-section="dateien" class="hidden">
@@ -118,6 +125,12 @@
             <ul>
               <li><code>_TIMEOUT</code> → Button Timeout, <code>_WALKON</code> → Button Walk-On</li>
               <li><code>_PAUSE1</code>, <code>_PAUSE2</code> … → je ein Pause-Button, automatisch angelegt</li>
+            </ul>
+            <h3>Kurven und Drops (Song-Analyse)</h3>
+            <ul>
+              <li>Die Kurven und die Drop-Zeiten stehen in der Datei <code>waveforms.json</code> im Ordner <code>Songs laden</code>. Sie wird beim Laden der Songs automatisch eingelesen.</li>
+              <li><strong>Neue oder ausgetauschte Songs?</strong> Dann zeigt die App beim Laden einen Hinweis „… Songs haben noch keine Kurve“. Am PC (Chrome oder Edge) <a href="tools/analyse.html" target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:underline">tools/analyse.html</a> öffnen, den Ordner <code>Songs laden</code> wählen und die Analyse laufen lassen. Es werden nur neue oder geänderte Songs berechnet, die Datei wird direkt im Ordner gespeichert.</li>
+              <li>Songs ohne Kurve funktionieren ganz normal, sie zeigen nur den einfachen Fortschrittsbalken und keinen Countdown.</li>
             </ul>
             <div class="info-tip">
               <strong>Wichtig:</strong> Play-Zähler und Markierungen hängen am Dateinamen. Wird ein Song umbenannt, beginnt er bei 0 und seine Markierungen sind weg. Formate: mp3, flac, wav, ogg.

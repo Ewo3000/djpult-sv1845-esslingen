@@ -772,3 +772,97 @@ body.h-screen {
   margin-right: 0.15rem;
   color: #9ca3af;
 }
+
+/* ---- Kurve und Drop-Countdown ---- */
+.song-button {
+  position: relative;
+}
+
+.np-chart {
+  position: relative;
+  height: 48px;
+  margin-top: 6px;
+}
+
+.np-chart canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.np-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 1.6rem;
+}
+
+.np-head #now-playing-title {
+  min-width: 0;
+  flex: 1;
+}
+
+.np-drop {
+  flex: none;
+  padding: 0 0.6rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  white-space: nowrap;
+  color: #111827;
+  background: #fbbf24;
+  border-radius: 0.5rem;
+}
+
+.np-drop.warn {
+  font-size: 1.1rem;
+  color: #fff;
+  background: #b91c1c;
+  animation: drop-pulse 0.4s ease-in-out infinite alternate;
+}
+
+.np-drop.now {
+  font-size: 1.2rem;
+  color: #111827;
+  background: #fde047;
+  animation: drop-pulse 0.2s ease-in-out infinite alternate;
+}
+
+.drop-badge {
+  flex: none;
+  padding: 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  color: #111827;
+  background: #fbbf24;
+  border-radius: 999px;
+}
+
+.drop-badge.warn {
+  color: #fff;
+  background: #b91c1c;
+}
+
+.drop-badge.now {
+  color: #fff;
+  background: #dc2626;
+}
+
+@keyframes drop-pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-drop.warn,
+  .np-drop.now {
+    animation: none;
+  }
+}

@@ -21,6 +21,13 @@ Ordner mit den Songs auswählen; Unterordner `special_music/` enthält die Spezi
 
 Spezial (`special_music/`): `_TIMEOUT`, `_WALKON`, `_PAUSE1`, `_PAUSE2`, ... Unterstützte Formate: mp3, flac, wav, ogg.
 
+## Kurven und Drop-Countdown
+
+- `tools/analyse.html` (am PC in Chrome/Edge öffnen) berechnet pro Song die Lautstärkekurve und erkennt Drops. Ergebnis: `waveforms.json` im Ordner `Songs laden`.
+- Die App liest die Datei beim Laden der Songs automatisch ein und zeigt Kurve und Countdown (5 / 3 / DROP) im Now-Playing an.
+- Nur neue oder geänderte Songs werden neu berechnet. Die App weist beim Laden auf Songs ohne Kurve hin.
+- Die Analyse-Logik steckt in `tools/analyse-core.js` (läuft komplett im Browser, nichts wird hochgeladen).
+
 ## WebRTC-Remote (Tablet = Player, Handy = Remote)
 - Player-Seite öffnen (`index.html`), Songs laden, dann `Remote koppeln` öffnen.
 - `Offer erzeugen` → QR/Text am Remote-Gerät (`remote.html`) scannen/einfügen.

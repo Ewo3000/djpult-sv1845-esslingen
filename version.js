@@ -2,11 +2,21 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "3.9";
+const APP_VERSION = "4.0";
 const APP_BUILD = "2026-10-06";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "4.0",
+    date: "2026-10-06",
+    changes: [
+      "Neu: Lautstärkekurve des laufenden Songs in Now Playing, mit Markierung des Drops.",
+      "Neu: Drop-Countdown (Drop in 5 … 3 rot, DROP!) im Now Playing und am laufenden Song-Button.",
+      "Neu: Song-Analyse als Werkzeug (tools/analyse.html), erzeugt waveforms.json im Musikordner.",
+      "Hinweis beim Laden, wenn Songs noch keine Kurve haben.",
+    ],
+  },
   {
     version: "3.9",
     date: "2026-10-06",
