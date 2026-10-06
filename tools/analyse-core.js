@@ -158,6 +158,19 @@
     return kept;
   }
 
+  // Pegel eines Songs: "level" = Pegel der lauten Teile, "integrated" = Gesamtpegel (mit relativem Gate)
+  function loudnessStats(allDb) {
+    const audible = Array.from(allDb).filter((v) => v > FLOOR_DB + 0.5);
+    if (!audible.length) return { level: FLOOR_DB, integrated: FLOOR_DB };
+    const meanDb = (values) => 10 * Math.log10(values.reduce((sum, v) => sum + Math.pow(10, v / 10), 0) / values.length);
+    const ungated = meanDb(audible);
+    const gated = audible.filter((v) => v > ungated - 10);
+    return {
+      level: Math.round(percentile(audible, 0.85) * 10) / 10,
+      integrated: Math.round(meanDb(gated.length ? gated : audible) * 10) / 10,
+    };
+  }
+
   // channels: Array von Float32Array (Rohdaten je Kanal), sampleRate in Hz
   function analyzeSamples(channels, sampleRate) {
     const mono = toMono(channels);
@@ -168,6 +181,7 @@
       duration: Math.round(duration * 10) / 10,
       curve: buildCurve(allDb, duration),
       drops: detectDrops(allDb, lowDb),
+      loudness: loudnessStats(allDb),
     };
   }
 

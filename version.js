@@ -2,11 +2,34 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "4.6";
+const APP_VERSION = "4.10";
 const APP_BUILD = "2026-10-06";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "4.10",
+    date: "2026-10-06",
+    changes: ["Zufall: Vorhören in der Verwaltung zählt nicht mehr als zuletzt gespielt; Anleitung erklärt die Sperre der letzten 4 Songs."],
+  },
+  {
+    version: "4.9",
+    date: "2026-10-06",
+    changes: ["Anleitung und Analyse-Werkzeug nennen jetzt den Ordner „Diesen Ordner Laden“."],
+  },
+  {
+    version: "4.8",
+    date: "2026-10-06",
+    changes: ["Fix: Das Drop-Schild am Song-Button bleibt nicht mehr stehen, wenn ein Song aus einer anderen Kategorie gestartet wird."],
+  },
+  {
+    version: "4.7",
+    date: "2026-10-06",
+    changes: [
+      "Song-Analyse misst jetzt auch den Pegel jedes Songs (nach dem Update einmal neu ausführen).",
+      "Reiter Zu leise: Vorschläge für Songs ab 3 dB unter dem Median, mit Abstand in dB und Anhören.",
+    ],
+  },
   {
     version: "4.6",
     date: "2026-10-06",
