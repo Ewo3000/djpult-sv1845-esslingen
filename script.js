@@ -2267,17 +2267,54 @@ function initInfoUI() {
   }
 }
 
-function toggleInfo() {
-  const panel = infoEls.panel || document.getElementById("info-panel");
+// Info- und Versionsfeld: immer nur eines offen, ein Tipp daneben schliesst es
+const SIDE_PANELS = [
+  { panel: "info-panel", toggle: "info-toggle" },
+  { panel: "version-panel", toggle: "version-toggle" },
+];
+
+function closeSidePanels(exceptPanelId = null) {
+  SIDE_PANELS.forEach(({ panel }) => {
+    if (panel === exceptPanelId) return;
+    const el = document.getElementById(panel);
+    if (el) el.classList.add("hidden");
+  });
+}
+
+function toggleSidePanel(panelId) {
+  const panel = document.getElementById(panelId);
   if (!panel) return;
+  closeSidePanels(panelId);
   panel.classList.toggle("hidden");
 }
 
-function toggleVersion() {
-  const panel = document.getElementById("version-panel");
-  if (!panel) return;
-  panel.classList.toggle("hidden");
+function toggleInfo() {
+  toggleSidePanel("info-panel");
 }
+
+function toggleVersion() {
+  toggleSidePanel("version-panel");
+}
+
+// Tipp ausserhalb des offenen Feldes (zum Beispiel auf einen Song) schliesst es; der Tipp selbst funktioniert weiter
+document.addEventListener(
+  "pointerdown",
+  (event) => {
+    SIDE_PANELS.forEach(({ panel, toggle }) => {
+      const panelEl = document.getElementById(panel);
+      if (!panelEl || panelEl.classList.contains("hidden")) return;
+      if (panelEl.contains(event.target)) return;
+      const toggleEl = document.getElementById(toggle);
+      if (toggleEl && toggleEl.contains(event.target)) return; // der Button schaltet selbst um
+      panelEl.classList.add("hidden");
+    });
+  },
+  true
+);
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeSidePanels();
+});
 
 function renderChangelog() {
   const box = document.getElementById("version-changelog");
