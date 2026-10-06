@@ -273,6 +273,7 @@ function loadMarks() {
       marks[group] = new Set(Array.isArray(data[group]) ? data[group] : []);
     });
     marksDirty = !!data.dirty;
+    dropFixes = sanitizeFixes(data.dropFixes);
   } catch (e) {
     console.warn("Konnte Markierungen nicht laden:", e);
   }
@@ -280,7 +281,7 @@ function loadMarks() {
 
 function saveMarks() {
   try {
-    const stored = { dirty: marksDirty };
+    const stored = { dirty: marksDirty, dropFixes };
     Object.keys(MARK_GROUPS).forEach((group) => {
       stored[group] = [...marks[group]];
     });
@@ -296,6 +297,7 @@ function marksToJson() {
   Object.keys(MARK_GROUPS).forEach((group) => {
     out[group] = sorted(marks[group]);
   });
+  out.dropFixes = sortedFixes();
   return JSON.stringify(out, null, 2);
 }
 
@@ -306,6 +308,282 @@ function applyMarksData(data, mode) {
     const ids = clean(data[group]);
     if (mode === "merge") ids.forEach((id) => marks[group].add(id));
     else marks[group] = new Set(ids);
+  });
+  const fixes = sanitizeFixes(data.dropFixes);
+  if (mode === "merge") Object.assign(dropFixes, fixes);
+  else dropFixes = fixes;
+}
+
+// ---- Drop-Zeiten: Korrektur und Vorschlaege fuer "Langer Aufbau" ------------
+const LONG_BUILDUP_S = 10; // erster Drop ab so vielen Sekunden = Langer Aufbau
+const DROP_FIX_KEEP_GAP_S = 8; // spaetere erkannte Drops muessen so weit hinter einer Korrektur liegen
+const DROP_PREVIEW_LEAD_S = 6; // Vorhoeren beginnt so viele Sekunden vor dem Drop
+const DROP_FILTERS = [
+  ["all", "Alle"],
+  ["fixed", "Korrigiert"],
+  ["long", `Aufbau ab ${LONG_BUILDUP_S} s`],
+  ["none", "Ohne Drop"],
+];
+let dropFixes = {}; // Song-ID -> korrigierte Zeit in Sekunden, oder null = "kein Drop"
+let dropFilter = "all";
+
+function sanitizeFixes(source) {
+  const result = {};
+  if (source && typeof source === "object") {
+    Object.entries(source).forEach(([id, value]) => {
+      if (value === null || (typeof value === "number" && isFinite(value) && value >= 0)) result[id] = value;
+    });
+  }
+  return result;
+}
+
+function sortedFixes() {
+  const out = {};
+  Object.keys(dropFixes)
+    .sort((a, b) => a.localeCompare(b, "de"))
+    .forEach((id) => {
+      out[id] = dropFixes[id];
+    });
+  return out;
+}
+
+function fixesEqual(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+// Erkannte Drops, ggf. durch die Korrektur des Nutzers ersetzt
+function effectiveDrops(songId, wave) {
+  const detected = wave && Array.isArray(wave.drops) ? wave.drops : [];
+  if (!Object.prototype.hasOwnProperty.call(dropFixes, songId)) return detected;
+  const fix = dropFixes[songId];
+  if (fix === null) return [];
+  return [[fix, 1], ...detected.filter((drop) => drop[0] > fix + DROP_FIX_KEEP_GAP_S)];
+}
+
+function firstDropTime(song) {
+  if (!song || !song.wave) return null;
+  const drops = effectiveDrops(song.id, song.wave);
+  return drops.length ? drops[0][0] : null;
+}
+
+function formatDropTime(seconds) {
+  if (seconds === null || seconds === undefined) return "kein Drop";
+  return `${seconds.toFixed(1).replace(".", ",")} s`;
+}
+
+function setDropFix(id, value) {
+  if (value === undefined) delete dropFixes[id];
+  else dropFixes[id] = value;
+  marksDirty = true;
+  saveMarks();
+  updateMarksStatus();
+  if (nowPlayingId === id) currentWave = lookupWave(id); // laufender Song uebernimmt die Korrektur sofort
+  renderMarksPanel();
+  noteUnsavedChange();
+}
+
+// Spielt den Song ab einigen Sekunden vor dem Drop an (zaehlt nicht als Wiedergabe)
+function previewDrop(song) {
+  playAudio(song.url, song.display, null, song.id);
+  const first = firstDropTime(song);
+  const start = Math.max(0, (first === null ? 0 : first) - DROP_PREVIEW_LEAD_S);
+  const seek = () => {
+    try {
+      audioEl.currentTime = start;
+    } catch (err) {
+      /* ignorieren */
+    }
+  };
+  if (audioEl.readyState >= 1) seek();
+  else audioEl.addEventListener("loadedmetadata", seek, { once: true });
+}
+
+function longBuildupSuggestions(songs) {
+  return songs
+    .filter((song) => song.wave && !marks.slow.has(song.id))
+    .map((song) => ({ song, drop: firstDropTime(song) }))
+    .filter((item) => item.drop !== null && item.drop >= LONG_BUILDUP_S)
+    .sort((a, b) => a.drop - b.drop);
+}
+
+function acceptLongBuildup(ids) {
+  ids.forEach((id) => marks.slow.add(id));
+  marksDirty = true;
+  saveMarks();
+  refreshAllSongMarks();
+  updateMarksStatus();
+  renderMarksPanel();
+  noteUnsavedChange();
+}
+
+function makePreviewButton(song, title) {
+  const play = document.createElement("button");
+  play.className = "mark-play";
+  play.textContent = "▶";
+  play.title = title;
+  if (song) play.addEventListener("click", () => previewDrop(song));
+  else play.disabled = true;
+  return play;
+}
+
+function makeNameCell(song) {
+  const name = document.createElement("span");
+  name.className = "marks-name";
+  name.textContent = song.display;
+  if (categories[song.category]) {
+    const note = document.createElement("span");
+    note.className = "marks-note";
+    note.textContent = ` ${categories[song.category].title}`;
+    name.appendChild(note);
+  }
+  return name;
+}
+
+// Vorschlaege oben im Reiter "Langer Aufbau"
+function renderLongBuildupSuggestions(list, songs) {
+  const items = longBuildupSuggestions(songs);
+  if (!items.length) return;
+  const head = document.createElement("div");
+  head.className = "marks-sub";
+  const title = document.createElement("span");
+  title.textContent = `Vorschläge: erster Drop ab ${LONG_BUILDUP_S} s (${items.length})`;
+  const all = document.createElement("button");
+  all.className = "mark-toggle on";
+  all.textContent = `Alle übernehmen (${items.length})`;
+  all.addEventListener("click", () => acceptLongBuildup(items.map((item) => item.song.id)));
+  head.append(title, all);
+  list.appendChild(head);
+
+  items.forEach(({ song, drop }) => {
+    const row = document.createElement("div");
+    row.className = "marks-row suggestion";
+    const name = makeNameCell(song);
+    const time = document.createElement("span");
+    time.className = "marks-note";
+    time.textContent = ` Drop bei ${formatDropTime(drop)}`;
+    name.appendChild(time);
+    const accept = document.createElement("button");
+    accept.className = "mark-toggle";
+    accept.textContent = `${MARK_GROUPS.slow.symbol} Übernehmen`;
+    accept.addEventListener("click", () => acceptLongBuildup([song.id]));
+    const controls = document.createElement("span");
+    controls.className = "marks-controls";
+    controls.appendChild(accept);
+    row.append(makePreviewButton(song, "Ab kurz vor dem Drop anspielen (zählt nicht mit)"), name, controls);
+    list.appendChild(row);
+  });
+
+  const marked = document.createElement("div");
+  marked.className = "marks-sub";
+  marked.textContent = `Markiert (${marks.slow.size})`;
+  list.appendChild(marked);
+}
+
+function renderDropFilter() {
+  const box = document.getElementById("marks-filter");
+  if (!box) return;
+  box.classList.toggle("hidden", marksTab !== "drops");
+  if (marksTab !== "drops") return;
+  box.innerHTML = "";
+  DROP_FILTERS.forEach(([key, label]) => {
+    const button = document.createElement("button");
+    button.textContent = label;
+    button.classList.toggle("active", dropFilter === key);
+    button.addEventListener("click", () => {
+      dropFilter = key;
+      renderMarksPanel();
+    });
+    box.appendChild(button);
+  });
+}
+
+// Reiter "Drops": erkannte Drop-Zeit pro Song ansehen und korrigieren
+function renderDropsTab(list, songs) {
+  const withWave = songs.filter((song) => song.wave);
+  const withoutWave = songs.length - withWave.length;
+  const term = marksSearch.trim().toLowerCase();
+
+  if (withoutWave > 0) {
+    const info = document.createElement("div");
+    info.className = "marks-sub";
+    info.textContent = `${withoutWave} Songs ohne Kurve sind hier nicht aufgeführt (Song-Analyse nötig, siehe Info → Dateien).`;
+    list.appendChild(info);
+  }
+
+  const rows = withWave
+    .filter((song) => !term || song.display.toLowerCase().includes(term))
+    .filter((song) => {
+      const first = firstDropTime(song);
+      if (dropFilter === "fixed") return Object.prototype.hasOwnProperty.call(dropFixes, song.id);
+      if (dropFilter === "long") return first !== null && first >= LONG_BUILDUP_S;
+      if (dropFilter === "none") return first === null;
+      return true;
+    })
+    .sort(compareByDisplay);
+
+  if (!rows.length) {
+    const empty = document.createElement("div");
+    empty.className = "marks-empty";
+    empty.textContent = withWave.length
+      ? "Keine Songs für diese Auswahl."
+      : "Noch keine Kurven geladen. Song-Analyse ausführen (Info → Dateien) und die Songs neu laden.";
+    list.appendChild(empty);
+    return;
+  }
+
+  rows.forEach((song) => {
+    const hasFix = Object.prototype.hasOwnProperty.call(dropFixes, song.id);
+    const detectedFirst = song.wave.drops.length ? song.wave.drops[0][0] : null;
+    const first = firstDropTime(song);
+
+    const row = document.createElement("div");
+    row.className = "marks-row" + (hasFix ? " fixed" : "");
+    const name = makeNameCell(song);
+    const detected = document.createElement("span");
+    detected.className = "marks-note";
+    detected.textContent = hasFix ? ` korrigiert, erkannt: ${formatDropTime(detectedFirst)}` : ` erkannt: ${formatDropTime(detectedFirst)}`;
+    name.appendChild(detected);
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.step = "0.1";
+    input.min = "0";
+    input.inputMode = "decimal";
+    input.className = "drop-input";
+    input.value = first === null ? "" : first.toFixed(1);
+    input.placeholder = "–";
+    input.title = "Drop-Zeit in Sekunden";
+    input.addEventListener("change", () => {
+      const value = parseFloat(String(input.value).replace(",", "."));
+      if (!isFinite(value) || value < 0) {
+        renderMarksPanel();
+        return;
+      }
+      setDropFix(song.id, Math.round(value * 10) / 10);
+    });
+    const unit = document.createElement("span");
+    unit.className = "marks-note";
+    unit.textContent = "s";
+
+    const none = document.createElement("button");
+    none.className = "mark-toggle" + (hasFix && dropFixes[song.id] === null ? " on" : "");
+    none.textContent = "Kein Drop";
+    none.title = "Für diesen Song keinen Countdown anzeigen";
+    none.addEventListener("click", () => setDropFix(song.id, hasFix && dropFixes[song.id] === null ? undefined : null));
+
+    const controls = document.createElement("span");
+    controls.className = "marks-controls";
+    controls.append(input, unit, none);
+    if (hasFix) {
+      const reset = document.createElement("button");
+      reset.className = "mark-remove";
+      reset.textContent = "↺ Original";
+      reset.title = "Korrektur entfernen, erkannten Wert verwenden";
+      reset.addEventListener("click", () => setDropFix(song.id, undefined));
+      controls.appendChild(reset);
+    }
+    row.append(makePreviewButton(song, `Ab ${DROP_PREVIEW_LEAD_S} Sekunden vor dem Drop anspielen (zählt nicht mit)`), name, controls);
+    list.appendChild(row);
   });
 }
 
@@ -348,9 +626,9 @@ function readMarksBackup() {
 
 // Merkt sich den aktuellen Stand (ein Platz), bevor er durch Zuruecksetzen/Einlesen ersetzt wird
 function takeMarksBackup() {
-  if (marksCount() === 0) return;
+  if (marksCount() === 0 && Object.keys(dropFixes).length === 0) return;
   try {
-    const data = { savedAt: new Date().toISOString() };
+    const data = { savedAt: new Date().toISOString(), dropFixes };
     Object.keys(MARK_GROUPS).forEach((group) => {
       data[group] = [...marks[group]];
     });
@@ -381,8 +659,10 @@ function restoreMarksBackup() {
   const backup = readMarksBackup();
   if (!backup) return;
   const restored = marksFromData(backup);
+  const restoredFixes = sanitizeFixes(backup.dropFixes);
   takeMarksBackup(); // aktueller Stand wird zur neuen Sicherheitskopie, so ist es umkehrbar
   marks = restored;
+  dropFixes = restoredFixes;
   marksDirty = true;
   afterMarksChangedBulk();
   showToast(`Letzter Stand wiederhergestellt: ${marksCount()} Markierungen.`, "info");
@@ -598,13 +878,23 @@ function renderMarksPanel() {
     const key = tab.dataset.tab;
     if (key === "all") {
       tab.textContent = `Alle Songs (${songs.length})`;
+    } else if (key === "drops") {
+      const fixed = Object.keys(dropFixes).length;
+      tab.textContent = fixed ? `Drops (${fixed} korrigiert)` : "Drops";
     } else {
       tab.textContent = `${MARK_GROUPS[key].symbol} ${MARK_GROUPS[key].label} (${marks[key].size})`;
     }
     tab.classList.toggle("active", key === marksTab);
   });
   const searchInput = document.getElementById("marks-search");
-  if (searchInput) searchInput.classList.toggle("hidden", marksTab !== "all");
+  if (searchInput) searchInput.classList.toggle("hidden", marksTab !== "all" && marksTab !== "drops");
+  renderDropFilter();
+  if (marksTab === "drops") {
+    renderDropsTab(list, songs);
+    list.scrollTop = scroll;
+    return;
+  }
+  if (marksTab === "slow") renderLongBuildupSuggestions(list, songs);
 
   let rows;
   if (marksTab === "all") {
@@ -728,7 +1018,7 @@ function importMarksFromText(text, source, extraInfo = "") {
   let data;
   try {
     data = JSON.parse(text);
-    if (!marksDirty && !marksEqual(marks, marksFromData(data))) takeMarksBackup();
+    if (!marksDirty && (!marksEqual(marks, marksFromData(data)) || !fixesEqual(sortedFixes(), sanitizeFixes(data.dropFixes)))) takeMarksBackup();
     applyMarksData(data, marksDirty ? "merge" : "replace");
   } catch (err) {
     console.error("Markierungsdatei unlesbar:", err);
@@ -1069,7 +1359,7 @@ function announceWaveforms(hasFile, total, missing) {
 function lookupWave(songId) {
   if (!songId) return null;
   const song = getAllSongs().find((item) => item.id === songId);
-  return song && song.wave ? song.wave : null;
+  return song && song.wave ? { ...song.wave, drops: effectiveDrops(songId, song.wave) } : null;
 }
 
 // text: volle Anzeige in Now Playing, shortText: kurze Anzeige im Song-Button

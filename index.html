@@ -150,6 +150,12 @@
               <li><strong>Schnell:</strong> Einen Song im Pult etwa eine Sekunde <strong>lange drücken</strong> und im Menü die Markierungen an- oder ausschalten.</li>
               <li><strong>Verwalten:</strong> Button <strong>Markierungen</strong> öffnet die Liste mit Reitern für alle Songs (mit Suche und ▶ zum Anhören, das nicht mitzählt) und für jede Markierung. Dort kannst du Songs entfernen oder weiteren Markierungen zuordnen.</li>
             </ul>
+                        <h3>Drop-Zeiten und Langer Aufbau</h3>
+            <ul>
+              <li>Reiter <strong>Drops</strong> in der Verwaltung: Pro Song steht die erkannte Drop-Zeit. Mit ▶ spielst du den Song ab 6 Sekunden vor dem Drop an und siehst den Countdown. Stimmt die Zeit nicht, trägst du die richtige ein oder wählst <strong>Kein Drop</strong>. <strong>↺ Original</strong> nimmt die Korrektur zurück.</li>
+              <li>Reiter <strong>Langer Aufbau</strong>: Oben stehen <strong>Vorschläge</strong> für Songs, deren erster Drop erst ab 10 Sekunden kommt. Einzeln übernehmen oder mit „Alle übernehmen“.</li>
+              <li>Die Korrekturen werden zusammen mit den Markierungen in <code>markierungen.json</code> gesichert.</li>
+            </ul>
             <h3>Sichern in 3 Schritten</h3>
             <ol>
               <li>In der Verwaltung auf <strong>Sichern</strong> tippen.</li>
@@ -199,7 +205,9 @@
           <button data-tab="clap">Mitklatschen</button>
           <button data-tab="slow">Langer Aufbau</button>
           <button data-tab="quiet">Zu leise</button>
+          <button data-tab="drops">Drops</button>
         </div>
+        <div id="marks-filter" class="marks-tabs hidden"></div>
         <input id="marks-search" type="search" placeholder="Song suchen" />
         <div id="marks-list" class="marks-list"></div>
         <div class="marks-foot">
