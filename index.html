@@ -37,7 +37,10 @@
       <!-- Now Playing Banner -->
       <div id="now-playing" class="fixed top-2 right-2 z-40 bg-gray-800 text-white text-sm px-3 py-2 rounded-xl shadow hidden w-72 max-w-sm">
         <div id="now-playing-title" class="font-semibold truncate">--</div>
-        <div id="now-playing-eta" class="text-xs text-gray-300">--:--</div>
+        <div class="np-times">
+          <span><span class="np-label">Rest</span> <span id="now-playing-eta">--:--</span></span>
+          <span><span class="np-label">Gespielt</span> <span id="now-playing-elapsed">0:00</span></span>
+        </div>
         <div class="np-progress"><div id="now-playing-bar" class="np-progress-bar"></div></div>
       </div>
       <!-- Info / Release Notes -->

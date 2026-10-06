@@ -758,3 +758,17 @@ body.h-screen {
   border-left: 4px solid #3b82f6;
   border-radius: 0.5rem;
 }
+
+/* Now Playing: Restzeit links, gespielte Zeit rechts */
+.np-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #d1d5db;
+  font-variant-numeric: tabular-nums;
+}
+
+.np-label {
+  margin-right: 0.15rem;
+  color: #9ca3af;
+}

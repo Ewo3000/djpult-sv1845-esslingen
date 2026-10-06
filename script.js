@@ -6,7 +6,7 @@ let currentAudio = null;
 let volumeLevel = 1.0;
 let fadeIntervalId = null;
 let nowPlaying = { title: "", duration: 0, category: null };
-let nowPlayingEls = { box: null, title: null, eta: null, bar: null };
+let nowPlayingEls = { box: null, title: null, eta: null, elapsed: null, bar: null };
 let nowPlayingId = null; // ID des laufenden Songs (fuer die Hervorhebung im Raster)
 const NOW_PLAYING_WARNING_THRESHOLD = 10; // Sekunden
 let songPlayCounts = {};
@@ -1137,6 +1137,7 @@ function showNowPlaying(title = "") {
   nowPlaying.title = title || "Playing";
   if (t) t.textContent = nowPlaying.title;
   if (eta) eta.textContent = "--:--";
+  if (nowPlayingEls.elapsed) nowPlayingEls.elapsed.textContent = "0:00";
   if (nowPlayingEls.bar) nowPlayingEls.bar.style.width = "100%";
   if (box) box.classList.remove("hidden");
 }
@@ -1151,6 +1152,7 @@ function updateNowPlayingEta(el) {
   if (!eta || !el) return;
   const remaining = (el.duration || 0) - (el.currentTime || 0);
   eta.textContent = formatTime(remaining);
+  if (nowPlayingEls.elapsed) nowPlayingEls.elapsed.textContent = formatTime(el.currentTime || 0);
   toggleNowPlayingWarning(remaining);
   const { bar } = nowPlayingEls;
   if (bar) {
@@ -1166,6 +1168,7 @@ function clearNowPlaying() {
   updatePlayingHighlight();
   if (bar) bar.style.width = "0";
   if (eta) eta.textContent = "--:--";
+  if (nowPlayingEls.elapsed) nowPlayingEls.elapsed.textContent = "0:00";
   if (box) box.classList.add("hidden");
   toggleNowPlayingWarning(Infinity);
   sendNowPlayingStatus({ title: "", category: null, duration: 0, stopped: true });
@@ -1205,6 +1208,7 @@ document.addEventListener("DOMContentLoaded", () => {
     box: document.getElementById("now-playing"),
     title: document.getElementById("now-playing-title"),
     eta: document.getElementById("now-playing-eta"),
+    elapsed: document.getElementById("now-playing-elapsed"),
     bar: document.getElementById("now-playing-bar"),
   };
   headerEls = {
