@@ -94,24 +94,30 @@
   async function analyseEntries(entries, existing, onProgress) {
     const songs = {};
     const stats = { analysed: 0, kept: 0, failed: 0, removed: 0 };
-    const names = new Set(entries.map((e) => e.name));
-    stats.removed = Object.keys(existing || {}).filter((name) => !names.has(name)).length;
+    // Namen einheitlich zusammengesetzt (NFC) fuehren, egal wie das Betriebssystem sie liefert
+    const key = (name) => String(name).normalize("NFC");
+    const known = {};
+    Object.entries(existing || {}).forEach(([name, value]) => {
+      known[key(name)] = value;
+    });
+    const names = new Set(entries.map((e) => key(e.name)));
+    stats.removed = Object.keys(known).filter((name) => !names.has(name)).length;
     let done = 0;
     for (const entry of entries) {
       let info = "";
       let state = "ok";
       try {
         const file = await entry.getFile();
-        const old = existing && existing[entry.name];
+        const old = known[key(entry.name)];
         if (old && old.size === file.size && old.curve) {
-          songs[entry.name] = old;
+          songs[key(entry.name)] = old;
           stats.kept += 1;
           info = "unverändert";
         } else {
           const started = performance.now();
-          songs[entry.name] = await analyseFile(file);
+          songs[key(entry.name)] = await analyseFile(file);
           stats.analysed += 1;
-          const first = songs[entry.name].drops[0];
+          const first = songs[key(entry.name)].drops[0];
           info = (first ? `Drop ${first[0].toFixed(1)} s` : "kein Drop") + ` · ${Math.round((performance.now() - started) / 100) / 10} s`;
         }
       } catch (err) {

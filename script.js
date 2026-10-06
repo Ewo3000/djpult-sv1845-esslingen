@@ -51,6 +51,12 @@ const rtcState = {
   scanner: { stream: null, frameReq: null, video: null, canvas: null, ctx: null },
 };
 
+// Dateinamen mit Umlauten/Akzenten koennen je nach Geraet zusammengesetzt (NFC) oder zerlegt (NFD)
+// geliefert werden (iPad/iCloud oft zerlegt). Alle IDs werden deshalb einheitlich zusammengesetzt.
+function nfc(value) {
+  return String(value).normalize("NFC");
+}
+
 function cleanName(filename) {
   return filename
     .replace(/_BLOCK/i, "")
@@ -158,7 +164,7 @@ function handleFiles(fileList) {
     }
 
     categories[key].items.push({
-      id: file.name, // stabile ID fuer Counter/Storage
+      id: nfc(file.name), // stabile ID fuer Counter/Storage (einheitlich zusammengesetzt)
       name: file.name,
       display: cleanName(file.name),
       category: key,
@@ -272,12 +278,12 @@ function loadMarks() {
     if (!raw) return;
     const data = JSON.parse(raw);
     Object.keys(MARK_GROUPS).forEach((group) => {
-      marks[group] = new Set(Array.isArray(data[group]) ? data[group] : []);
+      marks[group] = new Set((Array.isArray(data[group]) ? data[group] : []).filter((x) => typeof x === "string").map(nfc));
     });
     marksDirty = !!data.dirty;
     dropFixes = sanitizeFixes(data.dropFixes);
     pendingMarkChanges = Number(data.pendingMarks) || 0;
-    pendingFixIds = new Set(Array.isArray(data.pendingFixes) ? data.pendingFixes : []);
+    pendingFixIds = new Set((Array.isArray(data.pendingFixes) ? data.pendingFixes : []).map(nfc));
   } catch (e) {
     console.warn("Konnte Markierungen nicht laden:", e);
   }
@@ -307,7 +313,7 @@ function marksToJson() {
 
 function applyMarksData(data, mode) {
   if (!data || typeof data !== "object") throw new Error("Ungueltige Markierungsdatei");
-  const clean = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === "string") : []);
+  const clean = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === "string").map(nfc) : []);
   Object.keys(MARK_GROUPS).forEach((group) => {
     const ids = clean(data[group]);
     if (mode === "merge") ids.forEach((id) => marks[group].add(id));
@@ -338,7 +344,7 @@ function sanitizeFixes(source) {
   const result = {};
   if (source && typeof source === "object") {
     Object.entries(source).forEach(([id, value]) => {
-      if (value === null || (typeof value === "number" && isFinite(value) && value >= 0)) result[id] = value;
+      if (value === null || (typeof value === "number" && isFinite(value) && value >= 0)) result[nfc(id)] = value;
     });
   }
   return result;
@@ -643,7 +649,7 @@ function marksFromData(data) {
   const result = emptyMarks();
   Object.keys(MARK_GROUPS).forEach((group) => {
     if (data && Array.isArray(data[group])) {
-      data[group].filter((x) => typeof x === "string").forEach((id) => result[group].add(id));
+      data[group].filter((x) => typeof x === "string").forEach((id) => result[group].add(nfc(id)));
     }
   });
   return result;
@@ -1420,7 +1426,7 @@ function loadWaveformsFile(file) {
     waveforms = {};
     Object.entries(data.songs).forEach(([name, entry]) => {
       if (!entry || typeof entry.curve !== "string") return;
-      waveforms[name] = {
+      waveforms[nfc(name)] = {
         size: entry.size,
         duration: entry.duration,
         curve: decodeCurve(entry.curve),
@@ -1897,7 +1903,11 @@ function loadPlayCounts() {
   try {
     const data = localStorage.getItem("songPlayCounts");
     if (data) {
-      songPlayCounts = JSON.parse(data);
+      songPlayCounts = {};
+      Object.entries(JSON.parse(data)).forEach(([id, count]) => {
+        const key = nfc(id); // aeltere Zaehler mit zerlegten Namen zusammenfuehren
+        songPlayCounts[key] = (songPlayCounts[key] || 0) + (Number(count) || 0);
+      });
     }
   } catch (e) {
     console.warn("Konnte songPlayCounts nicht laden:", e);
