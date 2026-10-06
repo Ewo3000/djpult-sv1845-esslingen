@@ -447,14 +447,18 @@ function acceptLongBuildup(ids) {
   noteUnsavedChange();
 }
 
-function makePreviewButton(song, title) {
+function makePreviewButtonFor(song, title, action) {
   const play = document.createElement("button");
   play.className = "mark-play";
   play.textContent = "▶";
   play.title = title;
-  if (song) play.addEventListener("click", () => previewDrop(song));
+  if (song) play.addEventListener("click", () => action(song));
   else play.disabled = true;
   return play;
+}
+
+function makePreviewButton(song, title) {
+  return makePreviewButtonFor(song, title, previewDrop);
 }
 
 function makeNameCell(song) {
@@ -554,6 +558,125 @@ function buildDropControls(song) {
     nodes.push(reset);
   }
   return nodes;
+}
+
+// ---- Pegel: Vorschlaege fuer "Zu leise" ------------------------------------
+const QUIET_SUGGEST_DB = 3; // so viel unter dem Median gilt als Vorschlag fuer "Zu leise"
+const LOUD_NOTE_DB = 3; // so viel ueber dem Median wird als "auffaellig laut" genannt
+
+function levelStats(songs) {
+  const levels = songs
+    .filter((song) => song.wave && typeof song.wave.level === "number")
+    .map((song) => song.wave.level)
+    .sort((a, b) => a - b);
+  if (!levels.length) return null;
+  const middle = Math.floor(levels.length / 2);
+  const median = levels.length % 2 ? levels[middle] : (levels[middle - 1] + levels[middle]) / 2;
+  return { median, count: levels.length };
+}
+
+function levelOffset(song, stats) {
+  if (!stats || !song || !song.wave || typeof song.wave.level !== "number") return null;
+  return song.wave.level - stats.median;
+}
+
+function formatDb(value) {
+  const rounded = Math.round(value * 10) / 10;
+  const sign = rounded < 0 ? "−" : rounded > 0 ? "+" : "";
+  return `${sign}${Math.abs(rounded).toFixed(1).replace(".", ",")} dB`;
+}
+
+// Kurzer Hinweis hinter dem Songnamen: Abstand zum Median (nur bei Auffaelligkeit oder im Reiter "Zu leise")
+function levelNote(song, stats) {
+  const offset = levelOffset(song, stats);
+  if (offset === null) return "";
+  if (marksTab !== "quiet" && Math.abs(offset) < 2) return "";
+  return ` · Pegel ${formatDb(offset)}`;
+}
+
+function previewSong(song) {
+  playAudio(song.url, song.display, null, song.id);
+}
+
+function acceptSuggestions(group, ids) {
+  ids.forEach((id) => marks[group].add(id));
+  marksDirty = true;
+  pendingMarkChanges += ids.length;
+  saveMarks();
+  refreshAllSongMarks();
+  updateMarksStatus();
+  renderMarksPanel();
+  noteUnsavedChange();
+}
+
+// Vorschlaege oben im Reiter "Zu leise"
+function renderQuietSuggestions(list, songs) {
+  const stats = levelStats(songs);
+  if (!stats) {
+    const info = document.createElement("div");
+    info.className = "marks-sub";
+    info.textContent = "Keine Pegelwerte vorhanden. Für Vorschläge die Song-Analyse einmal neu ausführen (Info → Dateien).";
+    list.appendChild(info);
+    return;
+  }
+
+  const items = songs
+    .map((song) => ({ song, offset: levelOffset(song, stats) }))
+    .filter((item) => item.offset !== null && item.offset <= -QUIET_SUGGEST_DB && !marks.quiet.has(item.song.id))
+    .sort((a, b) => a.offset - b.offset);
+
+  const head = document.createElement("div");
+  head.className = "marks-sub";
+  const title = document.createElement("span");
+  title.textContent = items.length
+    ? `Vorschläge: mindestens ${QUIET_SUGGEST_DB} dB leiser als der Median (${items.length})`
+    : `Keine neuen Vorschläge (Median-Pegel ${formatDb(stats.median).replace(" dB", "")} dB)`;
+  head.appendChild(title);
+  if (items.length) {
+    const all = document.createElement("button");
+    all.className = "mark-toggle on";
+    all.textContent = `Alle übernehmen (${items.length})`;
+    all.addEventListener("click", () => acceptSuggestions("quiet", items.map((item) => item.song.id)));
+    head.appendChild(all);
+  }
+  list.appendChild(head);
+
+  items.forEach(({ song, offset }) => {
+    const row = document.createElement("div");
+    row.className = "marks-row suggestion";
+    const name = makeNameCell(song);
+    const note = document.createElement("span");
+    note.className = "marks-note";
+    note.textContent = ` Pegel ${formatDb(offset)}`;
+    name.appendChild(note);
+    const accept = document.createElement("button");
+    accept.className = "mark-toggle";
+    accept.textContent = `${MARK_GROUPS.quiet.symbol} Übernehmen`;
+    accept.addEventListener("click", () => acceptSuggestions("quiet", [song.id]));
+    const controls = document.createElement("span");
+    controls.className = "marks-controls";
+    controls.appendChild(accept);
+    row.append(makePreviewButtonFor(song, "Anhören (zählt nicht mit)", previewSong), name, controls);
+    list.appendChild(row);
+  });
+
+  // Auffaellig laute Songs nur zur Information (es gibt keine Markierung "Zu laut")
+  const loud = songs
+    .map((song) => ({ song, offset: levelOffset(song, stats) }))
+    .filter((item) => item.offset !== null && item.offset >= LOUD_NOTE_DB)
+    .sort((a, b) => b.offset - a.offset);
+  const loudInfo = document.createElement("div");
+  loudInfo.className = "marks-sub";
+  loudInfo.textContent = loud.length
+    ? `Auffällig laut (ab +${LOUD_NOTE_DB} dB): ${loud.map((item) => `${item.song.display} ${formatDb(item.offset)}`).join(", ")}`
+    : `Auffällig laute Songs (ab +${LOUD_NOTE_DB} dB): keine`;
+  loudInfo.style.color = "#9ca3af";
+  list.appendChild(loudInfo);
+
+  const marked = document.createElement("div");
+  marked.className = "marks-sub";
+  marked.textContent = `Markiert (${marks.quiet.size})`;
+  list.appendChild(marked);
 }
 
 function renderDropFilter() {
@@ -965,6 +1088,7 @@ function renderMarksPanel() {
 
   const songs = getAllSongs();
   const byId = new Map(songs.map((song) => [song.id, song]));
+  const levelInfo = levelStats(songs);
 
   document.querySelectorAll("#marks-tabs [data-tab]").forEach((tab) => {
     const key = tab.dataset.tab;
@@ -987,6 +1111,7 @@ function renderMarksPanel() {
     return;
   }
   if (marksTab === "slow") renderLongBuildupSuggestions(list, songs);
+  if (marksTab === "quiet") renderQuietSuggestions(list, songs);
 
   let rows;
   if (marksTab === "all") {
@@ -1040,7 +1165,7 @@ function renderMarksPanel() {
       name.appendChild(note);
     } else if (categories[row.song.category]) {
       // Kategorie als Hinweis, damit gleichnamige Songs unterscheidbar sind
-      note.textContent = ` ${categories[row.song.category].title}${wavesUsable && !row.song.wave ? " · keine Kurve" : ""}`;
+      note.textContent = ` ${categories[row.song.category].title}${wavesUsable && !row.song.wave ? " · keine Kurve" : ""}${levelNote(row.song, levelInfo)}`;
       name.appendChild(note);
     }
 
@@ -1431,6 +1556,8 @@ function loadWaveformsFile(file) {
         duration: entry.duration,
         curve: decodeCurve(entry.curve),
         drops: Array.isArray(entry.drops) ? entry.drops : [],
+        level: typeof entry.level === "number" ? entry.level : null,
+        integrated: typeof entry.integrated === "number" ? entry.integrated : null,
       };
     });
     wavesUsable = true;

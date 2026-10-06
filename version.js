@@ -2,11 +2,19 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "4.6";
+const APP_VERSION = "4.7";
 const APP_BUILD = "2026-10-06";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "4.7",
+    date: "2026-10-06",
+    changes: [
+      "Song-Analyse misst jetzt auch den Pegel jedes Songs (nach dem Update einmal neu ausführen).",
+      "Reiter Zu leise: Vorschläge für Songs ab 3 dB unter dem Median, mit Abstand in dB und Anhören.",
+    ],
+  },
   {
     version: "4.6",
     date: "2026-10-06",
