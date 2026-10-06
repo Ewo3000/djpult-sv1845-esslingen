@@ -1357,7 +1357,15 @@ function getCountRange(cat) {
 
 function updatePlayingHighlight() {
   document.querySelectorAll(".song-button").forEach((btn) => {
-    btn.classList.toggle("is-playing", nowPlayingId !== null && btn.dataset.songId === nowPlayingId);
+    const playing = nowPlayingId !== null && btn.dataset.songId === nowPlayingId;
+    btn.classList.toggle("is-playing", playing);
+    if (!playing) {
+      const badge = btn.querySelector(".drop-badge");
+      if (badge && !badge.classList.contains("hidden")) {
+        badge.className = "drop-badge hidden";
+        badge.textContent = "";
+      }
+    }
   });
 }
 
@@ -1595,12 +1603,16 @@ function lookupWave(songId) {
 
 // text: volle Anzeige in Now Playing, shortText: kurze Anzeige im Song-Button
 function setDropState(state, text, shortText = text) {
-  const targets = [nowPlayingEls.drop, ...document.querySelectorAll(".song-button.is-playing .drop-badge")];
-  targets.forEach((el) => {
-    if (!el) return;
+  const apply = (el, active, label) => {
     const base = el.dataset.base || "drop-badge";
-    el.className = state ? `${base} ${state}` : `${base} hidden`;
-    el.textContent = state ? (base === "np-drop" ? text : shortText) : "";
+    el.className = active ? `${base} ${state}` : `${base} hidden`;
+    el.textContent = active ? label : "";
+  };
+  if (nowPlayingEls.drop) apply(nowPlayingEls.drop, !!state, text);
+  // Alle Schilder durchgehen: nur am laufenden Song-Button darf eines sichtbar sein
+  document.querySelectorAll(".song-button .drop-badge").forEach((el) => {
+    const playing = !!el.closest(".song-button.is-playing");
+    apply(el, !!state && playing, shortText);
   });
 }
 
