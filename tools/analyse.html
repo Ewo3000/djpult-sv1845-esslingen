@@ -39,7 +39,7 @@
 
   <h2>So geht's</h2>
   <ol>
-    <li>Unten auf <strong>Ordner wählen und starten</strong> klicken und den Ordner <code>Songs laden</code> wählen (darin liegen <code>music</code> und <code>special_music</code>). Der Browser fragt, ob er den Ordner ändern darf: erlauben.</li>
+    <li>Unten auf <strong>Ordner wählen und starten</strong> klicken und den Ordner <code>Diesen Ordner Laden</code> wählen (darin liegen <code>music</code> und <code>special_music</code>). Der Browser fragt, ob er den Ordner ändern darf: erlauben.</li>
     <li>Die Analyse läuft. Es werden nur <strong>neue oder geänderte</strong> Songs berechnet, schon vorhandene bleiben unverändert.</li>
     <li>Am Ende liegt die Datei <code>waveforms.json</code> im gewählten Ordner. iCloud überträgt sie zum iPad. Dort beim nächsten „Songs laden“ den Ordner wie gewohnt wählen.</li>
   </ol>
@@ -54,7 +54,7 @@
     <div id="log"></div>
   </div>
   <div id="result" class="box hidden"></div>
-  <p id="fallbackRow" class="hidden"><button id="download" class="secondary">waveforms.json herunterladen</button> <span style="color:#9ca3af">Diese Datei danach in den Ordner <code>Songs laden</code> legen.</span></p>
+  <p id="fallbackRow" class="hidden"><button id="download" class="secondary">waveforms.json herunterladen</button> <span style="color:#9ca3af">Diese Datei danach in den Ordner <code>Diesen Ordner Laden</code> legen.</span></p>
 </main>
 
 <script src="analyse-core.js"></script>
@@ -172,7 +172,7 @@
     try {
       musicDir = await root.getDirectoryHandle("music");
     } catch (err) {
-      showResult("err", "Im gewählten Ordner gibt es keinen Unterordner <code>music</code>. Bitte den Ordner <code>Songs laden</code> wählen.");
+      showResult("err", "Im gewählten Ordner gibt es keinen Unterordner <code>music</code>. Bitte den Ordner <code>Diesen Ordner Laden</code> wählen.");
       return;
     }
     const entries = [];
@@ -227,7 +227,7 @@
       const { songs, stats } = await analyseEntries(entries, existing, showProgress);
       pendingDownload = buildJson(songs);
       $("fallbackRow").classList.remove("hidden");
-      showResult(stats.failed ? "warn" : "ok", summary(stats, entries.length) + " Bitte die Datei herunterladen und in den Ordner <code>Songs laden</code> legen.");
+      showResult(stats.failed ? "warn" : "ok", summary(stats, entries.length) + " Bitte die Datei herunterladen und in den Ordner <code>Diesen Ordner Laden</code> legen.");
     });
     input.click();
   }
