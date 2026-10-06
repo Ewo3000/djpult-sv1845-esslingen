@@ -1534,6 +1534,7 @@ function initZoomControls() {
   const { level, inBtn, outBtn, resetBtn } = zoomEls;
   const applyZoom = () => {
     document.documentElement.style.fontSize = `${16 * zoomLevel}px`;
+    updateNowPlayingWidth();
     if (level) level.textContent = `${Math.round(zoomLevel * 100)}%`;
   };
   applyZoom();
@@ -1567,7 +1568,7 @@ function collapseHeader() {
   headerEls.block.classList.add("header-hidden");
   headerEls.block.style.display = "none";
   if (headerEls.toggle) {
-    headerEls.toggle.textContent = "Kopf einblenden";
+    headerEls.toggle.textContent = "Kopf ein";
     headerEls.toggle.dataset.collapsed = "true";
   }
   document.body.classList.add("header-collapsed");
@@ -1578,7 +1579,7 @@ function toggleHeaderVisibility() {
   const hidden = headerEls.block.classList.toggle("header-hidden");
   headerEls.block.style.display = hidden ? "none" : "";
   if (headerEls.toggle) {
-    headerEls.toggle.textContent = hidden ? "Kopf einblenden" : "Kopf ausblenden";
+    headerEls.toggle.textContent = hidden ? "Kopf ein" : "Kopf aus";
     headerEls.toggle.dataset.collapsed = hidden ? "true" : "false";
   }
   document.body.classList.toggle("header-collapsed", hidden);
@@ -1674,6 +1675,27 @@ function clearSearch() {
   renderCategories();
 }
 
+// Now Playing so breit wie moeglich, ohne die obere Leiste zu verdraengen
+const NP_MIN_REM = 18;
+const NP_MAX_REM = 30;
+
+function updateNowPlayingWidth() {
+  const bar = document.getElementById("top-bar");
+  if (!bar) return;
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  // natuerliche Breite der Leiste (der dehnbare Abstandshalter zaehlt dabei 0)
+  const previousRight = bar.style.right;
+  const previousWidth = bar.style.width;
+  bar.style.right = "auto";
+  bar.style.width = "max-content";
+  const natural = bar.offsetWidth;
+  bar.style.right = previousRight;
+  bar.style.width = previousWidth;
+  const available = window.innerWidth - natural - 1.5 * rem; // Raender links/rechts und Abstand
+  const width = Math.max(NP_MIN_REM * rem, Math.min(NP_MAX_REM * rem, available));
+  document.documentElement.style.setProperty("--np-width", `${Math.round(width)}px`);
+}
+
 function updateBottomBarHeight() {
   const bar = document.querySelector(".bottom-bar");
   if (bar) document.documentElement.style.setProperty("--bottom-bar-h", `${bar.offsetHeight}px`);
@@ -1697,6 +1719,10 @@ function initInfoUI() {
 
   // Fenster sollen immer ueber der unteren Leiste enden, auch wenn sich deren Hoehe aendert
   updateBottomBarHeight();
+  updateNowPlayingWidth();
+  window.addEventListener("resize", updateNowPlayingWidth);
+  window.addEventListener("load", updateNowPlayingWidth);
+  setTimeout(updateNowPlayingWidth, 400);
   window.addEventListener("resize", updateBottomBarHeight);
   const bar = document.querySelector(".bottom-bar");
   if (bar && typeof ResizeObserver !== "undefined") {

@@ -118,7 +118,7 @@ body.h-screen {
 }
 
 .search-input {
-  width: 140px;
+  width: 110px;
 }
 
 .search-hit {
@@ -162,7 +162,7 @@ body.h-screen {
   position: fixed;
   top: 0.5rem;
   left: 0.5rem;
-  right: 19rem;
+  right: calc(var(--np-width, 18rem) + 1rem);
   z-index: 40;
   display: flex;
   align-items: center;
@@ -865,4 +865,9 @@ body.h-screen {
   .np-drop.now {
     animation: none;
   }
+}
+
+/* Now Playing nimmt die Breite, die die obere Leiste uebrig laesst (siehe updateNowPlayingWidth) */
+.np-box {
+  width: var(--np-width, 18rem);
 }
