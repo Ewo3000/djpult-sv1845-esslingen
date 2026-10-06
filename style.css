@@ -365,8 +365,8 @@ body.h-screen {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  min-width: 14rem;
-  max-width: 90vw;
+  min-width: 18rem;
+  max-width: 94vw;
   padding: 0.6rem;
   color: #fff;
   background: #1f2937;
@@ -908,4 +908,25 @@ body.h-screen {
   line-height: 1;
   color: #9ca3af;
   opacity: 0.85;
+}
+
+/* Drop-Zeit im Langdruck-Menue */
+.mark-menu-drop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #374151;
+}
+
+.mark-menu-label {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.mark-menu-droprow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
 }

@@ -332,6 +332,7 @@ let pendingMarkChanges = 0; // Aenderungen an Markierungen seit dem letzten Sich
 let pendingFixIds = new Set(); // Songs mit Drop-Korrektur seit dem letzten Sichern
 let dropFixes = {}; // Song-ID -> korrigierte Zeit in Sekunden, oder null = "kein Drop"
 let dropFilter = "all";
+let dropFixListener = null; // vom offenen Langdruck-Menue gesetzt, wird nach jeder Korrektur aufgerufen
 
 function sanitizeFixes(source) {
   const result = {};
@@ -386,6 +387,7 @@ function setDropFix(id, value) {
   updateMarksStatus();
   if (nowPlayingId === id) currentWave = lookupWave(id); // laufender Song uebernimmt die Korrektur sofort
   renderMarksPanel();
+  if (dropFixListener) dropFixListener(id);
   noteUnsavedChange();
 }
 
@@ -487,6 +489,52 @@ function renderLongBuildupSuggestions(list, songs) {
   list.appendChild(marked);
 }
 
+// Eingabefeld, "Kein Drop" und "Original" fuer die Drop-Zeit eines Songs (Reiter Drops und Menue)
+function buildDropControls(song) {
+  const hasFix = Object.prototype.hasOwnProperty.call(dropFixes, song.id);
+  const first = firstDropTime(song);
+
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = "0.1";
+  input.min = "0";
+  input.inputMode = "decimal";
+  input.className = "drop-input";
+  input.value = first === null ? "" : first.toFixed(1);
+  input.placeholder = "–";
+  input.title = "Drop-Zeit in Sekunden";
+  input.addEventListener("change", () => {
+    const value = parseFloat(String(input.value).replace(",", "."));
+    if (!isFinite(value) || value < 0) {
+      renderMarksPanel();
+      if (dropFixListener) dropFixListener(song.id);
+      return;
+    }
+    setDropFix(song.id, Math.round(value * 10) / 10);
+  });
+
+  const unit = document.createElement("span");
+  unit.className = "marks-note";
+  unit.textContent = "s";
+
+  const none = document.createElement("button");
+  none.className = "mark-toggle" + (hasFix && dropFixes[song.id] === null ? " on" : "");
+  none.textContent = "Kein Drop";
+  none.title = "Für diesen Song keinen Countdown anzeigen";
+  none.addEventListener("click", () => setDropFix(song.id, hasFix && dropFixes[song.id] === null ? undefined : null));
+
+  const nodes = [input, unit, none];
+  if (hasFix) {
+    const reset = document.createElement("button");
+    reset.className = "mark-remove";
+    reset.textContent = "↺ Original";
+    reset.title = "Korrektur entfernen, erkannten Wert verwenden";
+    reset.addEventListener("click", () => setDropFix(song.id, undefined));
+    nodes.push(reset);
+  }
+  return nodes;
+}
+
 function renderDropFilter() {
   const box = document.getElementById("marks-filter");
   if (!box) return;
@@ -556,44 +604,9 @@ function renderDropsTab(list, songs) {
       (pendingFixIds.has(song.id) ? " · ungesichert" : "");
     name.appendChild(detected);
 
-    const input = document.createElement("input");
-    input.type = "number";
-    input.step = "0.1";
-    input.min = "0";
-    input.inputMode = "decimal";
-    input.className = "drop-input";
-    input.value = first === null ? "" : first.toFixed(1);
-    input.placeholder = "–";
-    input.title = "Drop-Zeit in Sekunden";
-    input.addEventListener("change", () => {
-      const value = parseFloat(String(input.value).replace(",", "."));
-      if (!isFinite(value) || value < 0) {
-        renderMarksPanel();
-        return;
-      }
-      setDropFix(song.id, Math.round(value * 10) / 10);
-    });
-    const unit = document.createElement("span");
-    unit.className = "marks-note";
-    unit.textContent = "s";
-
-    const none = document.createElement("button");
-    none.className = "mark-toggle" + (hasFix && dropFixes[song.id] === null ? " on" : "");
-    none.textContent = "Kein Drop";
-    none.title = "Für diesen Song keinen Countdown anzeigen";
-    none.addEventListener("click", () => setDropFix(song.id, hasFix && dropFixes[song.id] === null ? undefined : null));
-
     const controls = document.createElement("span");
     controls.className = "marks-controls";
-    controls.append(input, unit, none);
-    if (hasFix) {
-      const reset = document.createElement("button");
-      reset.className = "mark-remove";
-      reset.textContent = "↺ Original";
-      reset.title = "Korrektur entfernen, erkannten Wert verwenden";
-      reset.addEventListener("click", () => setDropFix(song.id, undefined));
-      controls.appendChild(reset);
-    }
+    controls.append(...buildDropControls(song));
     row.append(makePreviewButton(song, `Ab ${DROP_PREVIEW_LEAD_S} Sekunden vor dem Drop anspielen (zählt nicht mit)`), name, controls);
     list.appendChild(row);
   });
@@ -810,6 +823,7 @@ function updateMarksStatus() {
 function closeMarkMenu() {
   const menu = document.getElementById("mark-menu");
   if (menu) menu.remove();
+  dropFixListener = null;
   document.removeEventListener("pointerdown", onMarkMenuOutside, true);
   if (menu && marksUnsavedChanges >= MARKS_HINT_MIN_CHANGES) maybeShowMarksHint();
 }
@@ -817,6 +831,17 @@ function closeMarkMenu() {
 function onMarkMenuOutside(event) {
   const menu = document.getElementById("mark-menu");
   if (menu && !menu.contains(event.target)) closeMarkMenu();
+}
+
+function placeMarkMenu(menu, anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const width = menu.offsetWidth;
+  const height = menu.offsetHeight;
+  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+  let top = rect.bottom + 6;
+  if (top + height > window.innerHeight - 170) top = Math.max(60, rect.top - height - 6);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
 }
 
 function openMarkMenu(song, anchor) {
@@ -846,6 +871,38 @@ function openMarkMenu(song, anchor) {
     menu.appendChild(btn);
   });
 
+  // Drop-Zeit direkt im Menue korrigieren
+  const dropBox = document.createElement("div");
+  dropBox.className = "mark-menu-drop";
+  const renderDropBox = () => {
+    dropBox.innerHTML = "";
+    if (!song.wave) {
+      const note = document.createElement("span");
+      note.className = "marks-note";
+      note.textContent = "Keine Kurve vorhanden, Drop-Zeit nicht verfügbar";
+      dropBox.appendChild(note);
+      return;
+    }
+    const detectedFirst = song.wave.drops.length ? song.wave.drops[0][0] : null;
+    const label = document.createElement("div");
+    label.className = "mark-menu-label";
+    label.textContent = `Drop-Zeit (erkannt: ${formatDropTime(detectedFirst)})`;
+    const row = document.createElement("div");
+    row.className = "mark-menu-droprow";
+    row.append(
+      makePreviewButton(song, `Ab ${DROP_PREVIEW_LEAD_S} Sekunden vor dem Drop anspielen (zählt nicht mit)`),
+      ...buildDropControls(song)
+    );
+    dropBox.append(label, row);
+  };
+  renderDropBox();
+  dropFixListener = (id) => {
+    if (id !== song.id || !document.body.contains(menu)) return;
+    renderDropBox();
+    placeMarkMenu(menu, anchor);
+  };
+  menu.appendChild(dropBox);
+
   const done = document.createElement("button");
   done.className = "mark-menu-done";
   done.textContent = "Fertig";
@@ -853,14 +910,7 @@ function openMarkMenu(song, anchor) {
   menu.appendChild(done);
 
   document.body.appendChild(menu);
-  const rect = anchor.getBoundingClientRect();
-  const width = menu.offsetWidth;
-  const height = menu.offsetHeight;
-  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-  let top = rect.bottom + 6;
-  if (top + height > window.innerHeight - 170) top = Math.max(60, rect.top - height - 6);
-  menu.style.left = `${left}px`;
-  menu.style.top = `${top}px`;
+  placeMarkMenu(menu, anchor);
   setTimeout(() => document.addEventListener("pointerdown", onMarkMenuOutside, true), 0);
 }
 
