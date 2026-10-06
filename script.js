@@ -391,20 +391,35 @@ function setDropFix(id, value) {
   noteUnsavedChange();
 }
 
-// Spielt den Song ab einigen Sekunden vor dem Drop an (zaehlt nicht als Wiedergabe)
+// Spielt den Song ab einigen Sekunden vor dem Drop an (zaehlt nicht als Wiedergabe).
+// Safari kann beim Springen in manchen Dateien (vor allem FLAC) die Wiedergabe abbrechen:
+// Der Sprung erfolgt deshalb erst, wenn die Wiedergabe laeuft, und ein Aufpasser startet den Song
+// bei Abbruch ohne Sprung von vorn.
 function previewDrop(song) {
   playAudio(song.url, song.display, null, song.id);
   const first = firstDropTime(song);
   const start = Math.max(0, (first === null ? 0 : first) - DROP_PREVIEW_LEAD_S);
-  const seek = () => {
-    try {
-      audioEl.currentTime = start;
-    } catch (err) {
-      /* ignorieren */
-    }
-  };
-  if (audioEl.readyState >= 1) seek();
-  else audioEl.addEventListener("loadedmetadata", seek, { once: true });
+  if (start <= 0) return; // kein Sprung noetig
+
+  const el = audioEl;
+  el.addEventListener(
+    "playing",
+    () => {
+      try {
+        el.currentTime = start;
+      } catch (err) {
+        /* ignorieren, der Aufpasser faengt es ab */
+      }
+    },
+    { once: true }
+  );
+  setTimeout(() => {
+    // Nur eingreifen, wenn die Vorschau tot ist und nichts anderes laeuft
+    const dead = nowPlayingId === null && (el.paused || el.ended);
+    if (!dead) return;
+    playAudio(song.url, song.display, null, song.id);
+    showToast("Der Sprung zum Drop klappt bei diesem Song hier nicht, er startet von vorn.", "info");
+  }, 1500);
 }
 
 function longBuildupSuggestions(songs) {

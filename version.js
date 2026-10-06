@@ -2,11 +2,16 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "4.4";
+const APP_VERSION = "4.5";
 const APP_BUILD = "2026-10-06";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "4.5",
+    date: "2026-10-06",
+    changes: ["Fix: Anhören ab dem Drop bricht bei manchen Songs (FLAC auf dem iPad) nicht mehr ab; notfalls startet der Song von vorn."],
+  },
   {
     version: "4.4",
     date: "2026-10-06",
