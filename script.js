@@ -101,6 +101,7 @@ function handleFiles(fileList) {
   const marksFiles = [];
   let wavesFile = null;
   waveforms = {};
+  wavesUsable = false;
 
   files.forEach((file) => {
     if (file.name.toLowerCase() === WAVEFORMS_FILENAME) {
@@ -175,8 +176,9 @@ function handleFiles(fileList) {
 
   // Kurven zuordnen und bei fehlenden Kurven kurz darauf hinweisen
   const finishWaves = () => {
-    const { total, missing } = applyWaveforms();
-    setTimeout(() => announceWaveforms(!!wavesFile, total, missing), 3500);
+    const { total, missing, names } = applyWaveforms();
+    if (wavesUsable && missing) renderCategories(); // kleines Symbol an Songs ohne Kurve
+    setTimeout(() => announceWaveforms(!!wavesFile, total, missing, names), 3500);
   };
   if (wavesFile) {
     loadWaveformsFile(wavesFile)
@@ -274,6 +276,8 @@ function loadMarks() {
     });
     marksDirty = !!data.dirty;
     dropFixes = sanitizeFixes(data.dropFixes);
+    pendingMarkChanges = Number(data.pendingMarks) || 0;
+    pendingFixIds = new Set(Array.isArray(data.pendingFixes) ? data.pendingFixes : []);
   } catch (e) {
     console.warn("Konnte Markierungen nicht laden:", e);
   }
@@ -281,7 +285,7 @@ function loadMarks() {
 
 function saveMarks() {
   try {
-    const stored = { dirty: marksDirty, dropFixes };
+    const stored = { dirty: marksDirty, dropFixes, pendingMarks: pendingMarkChanges, pendingFixes: [...pendingFixIds] };
     Object.keys(MARK_GROUPS).forEach((group) => {
       stored[group] = [...marks[group]];
     });
@@ -324,6 +328,8 @@ const DROP_FILTERS = [
   ["long", `Aufbau ab ${LONG_BUILDUP_S} s`],
   ["none", "Ohne Drop"],
 ];
+let pendingMarkChanges = 0; // Aenderungen an Markierungen seit dem letzten Sichern
+let pendingFixIds = new Set(); // Songs mit Drop-Korrektur seit dem letzten Sichern
 let dropFixes = {}; // Song-ID -> korrigierte Zeit in Sekunden, oder null = "kein Drop"
 let dropFilter = "all";
 
@@ -375,6 +381,7 @@ function setDropFix(id, value) {
   if (value === undefined) delete dropFixes[id];
   else dropFixes[id] = value;
   marksDirty = true;
+  pendingFixIds.add(id);
   saveMarks();
   updateMarksStatus();
   if (nowPlayingId === id) currentWave = lookupWave(id); // laufender Song uebernimmt die Korrektur sofort
@@ -409,6 +416,7 @@ function longBuildupSuggestions(songs) {
 function acceptLongBuildup(ids) {
   ids.forEach((id) => marks.slow.add(id));
   marksDirty = true;
+  pendingMarkChanges += ids.length;
   saveMarks();
   refreshAllSongMarks();
   updateMarksStatus();
@@ -506,7 +514,9 @@ function renderDropsTab(list, songs) {
   if (withoutWave > 0) {
     const info = document.createElement("div");
     info.className = "marks-sub";
-    info.textContent = `${withoutWave} Songs ohne Kurve sind hier nicht aufgeführt (Song-Analyse nötig, siehe Info → Dateien).`;
+    const missingNames = songs.filter((song) => !song.wave).map((song) => song.display);
+    const shown = missingNames.slice(0, 6).join(", ") + (missingNames.length > 6 ? " …" : "");
+    info.textContent = `${withoutWave} Songs ohne Kurve sind hier nicht aufgeführt: ${shown}. Song-Analyse nötig, siehe Info → Dateien.`;
     list.appendChild(info);
   }
 
@@ -541,7 +551,9 @@ function renderDropsTab(list, songs) {
     const name = makeNameCell(song);
     const detected = document.createElement("span");
     detected.className = "marks-note";
-    detected.textContent = hasFix ? ` korrigiert, erkannt: ${formatDropTime(detectedFirst)}` : ` erkannt: ${formatDropTime(detectedFirst)}`;
+    detected.textContent =
+      (hasFix ? ` korrigiert, erkannt: ${formatDropTime(detectedFirst)}` : ` erkannt: ${formatDropTime(detectedFirst)}`) +
+      (pendingFixIds.has(song.id) ? " · ungesichert" : "");
     name.appendChild(detected);
 
     const input = document.createElement("input");
@@ -761,6 +773,7 @@ function toggleMark(group, id) {
   if (marks[group].has(id)) marks[group].delete(id);
   else marks[group].add(id);
   marksDirty = true;
+  pendingMarkChanges += 1;
   saveMarks();
   updateSongMarks(id);
   updateMarksStatus();
@@ -772,14 +785,22 @@ function updateMarksStatus() {
   if (!marksDirty) {
     marksUnsavedChanges = 0;
     hideMarksHint();
+    if (pendingMarkChanges || pendingFixIds.size) {
+      pendingMarkChanges = 0;
+      pendingFixIds.clear();
+      saveMarks();
+    }
   }
   updateRestoreButton();
   const dot = document.getElementById("marks-dirty");
   if (dot) dot.classList.toggle("hidden", !marksDirty);
   const status = document.getElementById("marks-status");
   if (status) {
+    const parts = [];
+    if (pendingMarkChanges) parts.push(`${pendingMarkChanges} an Markierungen`);
+    if (pendingFixIds.size) parts.push(`${pendingFixIds.size} Drop-Korrektur${pendingFixIds.size === 1 ? "" : "en"}`);
     status.textContent = marksDirty
-      ? "Änderungen noch nicht gesichert"
+      ? `Änderungen noch nicht gesichert${parts.length ? ": " + parts.join(", ") : ""}`
       : "Gesichert / aus Datei geladen";
     status.classList.toggle("marks-status-dirty", marksDirty);
   }
@@ -948,7 +969,7 @@ function renderMarksPanel() {
       name.appendChild(note);
     } else if (categories[row.song.category]) {
       // Kategorie als Hinweis, damit gleichnamige Songs unterscheidbar sind
-      note.textContent = ` ${categories[row.song.category].title}`;
+      note.textContent = ` ${categories[row.song.category].title}${wavesUsable && !row.song.wave ? " · keine Kurve" : ""}`;
       name.appendChild(note);
     }
 
@@ -1185,8 +1206,17 @@ function buildSongButton(song, cat, range) {
   badge.className = "song-count";
   badge.textContent = count.toString();
   const markEl = createMarksEl(song.id);
-  if (markEl) btn.append(eq, name, markEl, badge);
-  else btn.append(eq, name, badge);
+  const parts = [eq, name];
+  if (wavesUsable && !song.wave) {
+    const noWave = document.createElement("span");
+    noWave.className = "song-nowave";
+    noWave.textContent = "\u2248";
+    noWave.title = "Keine Kurve – Song-Analyse ausführen";
+    parts.push(noWave);
+  }
+  if (markEl) parts.push(markEl);
+  parts.push(badge);
+  btn.append(...parts);
   const dropBadge = document.createElement("span");
   dropBadge.className = "drop-badge hidden";
   dropBadge.dataset.base = "drop-badge";
@@ -1305,6 +1335,7 @@ const DROP_NEAR_S = 5; // ab so vielen Sekunden vor dem Drop erscheint der Count
 const DROP_WARN_S = 3; // ab hier groesser und rot
 const DROP_FLASH_S = 1.2; // so lange bleibt "DROP!" stehen
 let waveforms = {};
+let wavesUsable = false; // waveforms.json wurde gefunden und gelesen
 let currentWave = null;
 let nowPlayingTimer = null;
 
@@ -1331,26 +1362,28 @@ function loadWaveformsFile(file) {
         drops: Array.isArray(entry.drops) ? entry.drops : [],
       };
     });
+    wavesUsable = true;
   });
 }
 
 // Ordnet jedem Song seine Kurve zu (nur wenn Dateiname und Groesse passen)
 function applyWaveforms() {
   const songs = getAllSongs();
-  let missing = 0;
+  const names = [];
   songs.forEach((song) => {
     const wave = waveforms[song.id];
     song.wave = wave && wave.size === song.size ? wave : null;
-    if (!song.wave) missing += 1;
+    if (!song.wave) names.push(song.display);
   });
-  return { total: songs.length, missing };
+  return { total: songs.length, missing: names.length, names };
 }
 
-function announceWaveforms(hasFile, total, missing) {
+function announceWaveforms(hasFile, total, missing, names = []) {
   if (!total || !missing) return;
+  const list = names.length && names.length <= 3 ? ` (${names.join(", ")})` : "";
   showToast(
     hasFile
-      ? `${missing} von ${total} Songs haben noch keine Kurve. Bitte die Song-Analyse ausführen (Info → Dateien).`
+      ? `${missing} von ${total} Songs haben noch keine Kurve${list}. Bitte die Song-Analyse ausführen (Info → Dateien).`
       : "Keine Kurven gefunden (waveforms.json fehlt im Ordner). Bitte die Song-Analyse ausführen (Info → Dateien).",
     "info"
   );

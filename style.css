@@ -900,3 +900,12 @@ body.h-screen {
   background: #fff;
   border-radius: 0.4rem;
 }
+
+/* Song ohne Kurve: kleines, dezentes Zeichen */
+.song-nowave {
+  flex: none;
+  font-size: 0.8rem;
+  line-height: 1;
+  color: #9ca3af;
+  opacity: 0.85;
+}
