@@ -6,7 +6,7 @@ let currentAudio = null;
 let volumeLevel = 1.0;
 let fadeIntervalId = null;
 let nowPlaying = { title: "", duration: 0, category: null };
-let nowPlayingEls = { box: null, title: null, eta: null, bar: null };
+let nowPlayingEls = { box: null, title: null, eta: null, elapsed: null, bar: null, progress: null, chartWrap: null, chart: null, drop: null };
 let nowPlayingId = null; // ID des laufenden Songs (fuer die Hervorhebung im Raster)
 const NOW_PLAYING_WARNING_THRESHOLD = 10; // Sekunden
 let songPlayCounts = {};
@@ -50,6 +50,12 @@ const rtcState = {
   ui: {},
   scanner: { stream: null, frameReq: null, video: null, canvas: null, ctx: null },
 };
+
+// Dateinamen mit Umlauten/Akzenten koennen je nach Geraet zusammengesetzt (NFC) oder zerlegt (NFD)
+// geliefert werden (iPad/iCloud oft zerlegt). Alle IDs werden deshalb einheitlich zusammengesetzt.
+function nfc(value) {
+  return String(value).normalize("NFC");
+}
 
 function cleanName(filename) {
   return filename
@@ -99,8 +105,15 @@ function handleFiles(fileList) {
   let toggle = 0;
 
   const marksFiles = [];
+  let wavesFile = null;
+  waveforms = {};
+  wavesUsable = false;
 
   files.forEach((file) => {
+    if (file.name.toLowerCase() === WAVEFORMS_FILENAME) {
+      wavesFile = file;
+      return;
+    }
     if (MARKS_FILE_PATTERN.test(file.name)) {
       marksFiles.push(file);
       return;
@@ -151,10 +164,11 @@ function handleFiles(fileList) {
     }
 
     categories[key].items.push({
-      id: file.name, // stabile ID fuer Counter/Storage
+      id: nfc(file.name), // stabile ID fuer Counter/Storage (einheitlich zusammengesetzt)
       name: file.name,
       display: cleanName(file.name),
       category: key,
+      size: file.size, // fuer die Zuordnung der Kurve (waveforms.json)
       url: URL.createObjectURL(file),
     });
   });
@@ -165,6 +179,23 @@ function handleFiles(fileList) {
   sendSongsListToRemote();
   resetPageScroll();
   if (marksFiles.length) loadNewestMarksFile(marksFiles);
+
+  // Kurven zuordnen und bei fehlenden Kurven kurz darauf hinweisen
+  const finishWaves = () => {
+    const { total, missing, names } = applyWaveforms();
+    if (wavesUsable && missing) renderCategories(); // kleines Symbol an Songs ohne Kurve
+    setTimeout(() => announceWaveforms(!!wavesFile, total, missing, names), 3500);
+  };
+  if (wavesFile) {
+    loadWaveformsFile(wavesFile)
+      .catch((err) => {
+        console.error("waveforms.json unlesbar:", err);
+        showToast("Die Datei waveforms.json konnte nicht gelesen werden.");
+      })
+      .then(finishWaves);
+  } else {
+    finishWaves();
+  }
 }
 
 // Nach Dateiauswahl/Layoutwechsel kann Safari die Seite nach oben/unten verschoben lassen.
@@ -247,9 +278,12 @@ function loadMarks() {
     if (!raw) return;
     const data = JSON.parse(raw);
     Object.keys(MARK_GROUPS).forEach((group) => {
-      marks[group] = new Set(Array.isArray(data[group]) ? data[group] : []);
+      marks[group] = new Set((Array.isArray(data[group]) ? data[group] : []).filter((x) => typeof x === "string").map(nfc));
     });
     marksDirty = !!data.dirty;
+    dropFixes = sanitizeFixes(data.dropFixes);
+    pendingMarkChanges = Number(data.pendingMarks) || 0;
+    pendingFixIds = new Set((Array.isArray(data.pendingFixes) ? data.pendingFixes : []).map(nfc));
   } catch (e) {
     console.warn("Konnte Markierungen nicht laden:", e);
   }
@@ -257,7 +291,7 @@ function loadMarks() {
 
 function saveMarks() {
   try {
-    const stored = { dirty: marksDirty };
+    const stored = { dirty: marksDirty, dropFixes, pendingMarks: pendingMarkChanges, pendingFixes: [...pendingFixIds] };
     Object.keys(MARK_GROUPS).forEach((group) => {
       stored[group] = [...marks[group]];
     });
@@ -273,16 +307,329 @@ function marksToJson() {
   Object.keys(MARK_GROUPS).forEach((group) => {
     out[group] = sorted(marks[group]);
   });
+  out.dropFixes = sortedFixes();
   return JSON.stringify(out, null, 2);
 }
 
 function applyMarksData(data, mode) {
   if (!data || typeof data !== "object") throw new Error("Ungueltige Markierungsdatei");
-  const clean = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === "string") : []);
+  const clean = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === "string").map(nfc) : []);
   Object.keys(MARK_GROUPS).forEach((group) => {
     const ids = clean(data[group]);
     if (mode === "merge") ids.forEach((id) => marks[group].add(id));
     else marks[group] = new Set(ids);
+  });
+  const fixes = sanitizeFixes(data.dropFixes);
+  if (mode === "merge") Object.assign(dropFixes, fixes);
+  else dropFixes = fixes;
+}
+
+// ---- Drop-Zeiten: Korrektur und Vorschlaege fuer "Langer Aufbau" ------------
+const LONG_BUILDUP_S = 10; // erster Drop ab so vielen Sekunden = Langer Aufbau
+const DROP_FIX_KEEP_GAP_S = 8; // spaetere erkannte Drops muessen so weit hinter einer Korrektur liegen
+const DROP_PREVIEW_LEAD_S = 6; // Vorhoeren beginnt so viele Sekunden vor dem Drop
+const DROP_FILTERS = [
+  ["all", "Alle"],
+  ["fixed", "Korrigiert"],
+  ["long", `Aufbau ab ${LONG_BUILDUP_S} s`],
+  ["none", "Ohne Drop"],
+];
+let pendingMarkChanges = 0; // Aenderungen an Markierungen seit dem letzten Sichern
+let pendingFixIds = new Set(); // Songs mit Drop-Korrektur seit dem letzten Sichern
+let dropFixes = {}; // Song-ID -> korrigierte Zeit in Sekunden, oder null = "kein Drop"
+let dropFilter = "all";
+let dropFixListener = null; // vom offenen Langdruck-Menue gesetzt, wird nach jeder Korrektur aufgerufen
+
+function sanitizeFixes(source) {
+  const result = {};
+  if (source && typeof source === "object") {
+    Object.entries(source).forEach(([id, value]) => {
+      if (value === null || (typeof value === "number" && isFinite(value) && value >= 0)) result[nfc(id)] = value;
+    });
+  }
+  return result;
+}
+
+function sortedFixes() {
+  const out = {};
+  Object.keys(dropFixes)
+    .sort((a, b) => a.localeCompare(b, "de"))
+    .forEach((id) => {
+      out[id] = dropFixes[id];
+    });
+  return out;
+}
+
+function fixesEqual(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+// Erkannte Drops, ggf. durch die Korrektur des Nutzers ersetzt
+function effectiveDrops(songId, wave) {
+  const detected = wave && Array.isArray(wave.drops) ? wave.drops : [];
+  if (!Object.prototype.hasOwnProperty.call(dropFixes, songId)) return detected;
+  const fix = dropFixes[songId];
+  if (fix === null) return [];
+  return [[fix, 1], ...detected.filter((drop) => drop[0] > fix + DROP_FIX_KEEP_GAP_S)];
+}
+
+function firstDropTime(song) {
+  if (!song || !song.wave) return null;
+  const drops = effectiveDrops(song.id, song.wave);
+  return drops.length ? drops[0][0] : null;
+}
+
+function formatDropTime(seconds) {
+  if (seconds === null || seconds === undefined) return "kein Drop";
+  return `${seconds.toFixed(1).replace(".", ",")} s`;
+}
+
+function setDropFix(id, value) {
+  if (value === undefined) delete dropFixes[id];
+  else dropFixes[id] = value;
+  marksDirty = true;
+  pendingFixIds.add(id);
+  saveMarks();
+  updateMarksStatus();
+  if (nowPlayingId === id) currentWave = lookupWave(id); // laufender Song uebernimmt die Korrektur sofort
+  renderMarksPanel();
+  if (dropFixListener) dropFixListener(id);
+  noteUnsavedChange();
+}
+
+// Spielt den Song ab einigen Sekunden vor dem Drop an (zaehlt nicht als Wiedergabe).
+// Safari kann beim Springen in manchen Dateien (vor allem FLAC) die Wiedergabe abbrechen:
+// Der Sprung erfolgt deshalb erst, wenn die Wiedergabe laeuft, und ein Aufpasser startet den Song
+// bei Abbruch ohne Sprung von vorn.
+function previewDrop(song) {
+  playAudio(song.url, song.display, null, song.id);
+  const first = firstDropTime(song);
+  const start = Math.max(0, (first === null ? 0 : first) - DROP_PREVIEW_LEAD_S);
+  if (start <= 0) return; // kein Sprung noetig
+
+  const el = audioEl;
+  el.addEventListener(
+    "playing",
+    () => {
+      try {
+        el.currentTime = start;
+      } catch (err) {
+        /* ignorieren, der Aufpasser faengt es ab */
+      }
+    },
+    { once: true }
+  );
+  setTimeout(() => {
+    // Nur eingreifen, wenn die Vorschau tot ist und nichts anderes laeuft
+    const dead = nowPlayingId === null && (el.paused || el.ended);
+    if (!dead) return;
+    playAudio(song.url, song.display, null, song.id);
+    showToast("Der Sprung zum Drop klappt bei diesem Song hier nicht, er startet von vorn.", "info");
+  }, 1500);
+}
+
+function longBuildupSuggestions(songs) {
+  return songs
+    .filter((song) => song.wave && !marks.slow.has(song.id))
+    .map((song) => ({ song, drop: firstDropTime(song) }))
+    .filter((item) => item.drop !== null && item.drop >= LONG_BUILDUP_S)
+    .sort((a, b) => a.drop - b.drop);
+}
+
+function acceptLongBuildup(ids) {
+  ids.forEach((id) => marks.slow.add(id));
+  marksDirty = true;
+  pendingMarkChanges += ids.length;
+  saveMarks();
+  refreshAllSongMarks();
+  updateMarksStatus();
+  renderMarksPanel();
+  noteUnsavedChange();
+}
+
+function makePreviewButton(song, title) {
+  const play = document.createElement("button");
+  play.className = "mark-play";
+  play.textContent = "▶";
+  play.title = title;
+  if (song) play.addEventListener("click", () => previewDrop(song));
+  else play.disabled = true;
+  return play;
+}
+
+function makeNameCell(song) {
+  const name = document.createElement("span");
+  name.className = "marks-name";
+  name.textContent = song.display;
+  if (categories[song.category]) {
+    const note = document.createElement("span");
+    note.className = "marks-note";
+    note.textContent = ` ${categories[song.category].title}`;
+    name.appendChild(note);
+  }
+  return name;
+}
+
+// Vorschlaege oben im Reiter "Langer Aufbau"
+function renderLongBuildupSuggestions(list, songs) {
+  const items = longBuildupSuggestions(songs);
+  if (!items.length) return;
+  const head = document.createElement("div");
+  head.className = "marks-sub";
+  const title = document.createElement("span");
+  title.textContent = `Vorschläge: erster Drop ab ${LONG_BUILDUP_S} s (${items.length})`;
+  const all = document.createElement("button");
+  all.className = "mark-toggle on";
+  all.textContent = `Alle übernehmen (${items.length})`;
+  all.addEventListener("click", () => acceptLongBuildup(items.map((item) => item.song.id)));
+  head.append(title, all);
+  list.appendChild(head);
+
+  items.forEach(({ song, drop }) => {
+    const row = document.createElement("div");
+    row.className = "marks-row suggestion";
+    const name = makeNameCell(song);
+    const time = document.createElement("span");
+    time.className = "marks-note";
+    time.textContent = ` Drop bei ${formatDropTime(drop)}`;
+    name.appendChild(time);
+    const accept = document.createElement("button");
+    accept.className = "mark-toggle";
+    accept.textContent = `${MARK_GROUPS.slow.symbol} Übernehmen`;
+    accept.addEventListener("click", () => acceptLongBuildup([song.id]));
+    const controls = document.createElement("span");
+    controls.className = "marks-controls";
+    controls.appendChild(accept);
+    row.append(makePreviewButton(song, "Ab kurz vor dem Drop anspielen (zählt nicht mit)"), name, controls);
+    list.appendChild(row);
+  });
+
+  const marked = document.createElement("div");
+  marked.className = "marks-sub";
+  marked.textContent = `Markiert (${marks.slow.size})`;
+  list.appendChild(marked);
+}
+
+// Eingabefeld, "Kein Drop" und "Original" fuer die Drop-Zeit eines Songs (Reiter Drops und Menue)
+function buildDropControls(song) {
+  const hasFix = Object.prototype.hasOwnProperty.call(dropFixes, song.id);
+  const first = firstDropTime(song);
+
+  const input = document.createElement("input");
+  input.type = "number";
+  input.step = "0.1";
+  input.min = "0";
+  input.inputMode = "decimal";
+  input.className = "drop-input";
+  input.value = first === null ? "" : first.toFixed(1);
+  input.placeholder = "–";
+  input.title = "Drop-Zeit in Sekunden";
+  input.addEventListener("change", () => {
+    const value = parseFloat(String(input.value).replace(",", "."));
+    if (!isFinite(value) || value < 0) {
+      renderMarksPanel();
+      if (dropFixListener) dropFixListener(song.id);
+      return;
+    }
+    setDropFix(song.id, Math.round(value * 10) / 10);
+  });
+
+  const unit = document.createElement("span");
+  unit.className = "marks-note";
+  unit.textContent = "s";
+
+  const none = document.createElement("button");
+  none.className = "mark-toggle" + (hasFix && dropFixes[song.id] === null ? " on" : "");
+  none.textContent = "Kein Drop";
+  none.title = "Für diesen Song keinen Countdown anzeigen";
+  none.addEventListener("click", () => setDropFix(song.id, hasFix && dropFixes[song.id] === null ? undefined : null));
+
+  const nodes = [input, unit, none];
+  if (hasFix) {
+    const reset = document.createElement("button");
+    reset.className = "mark-remove";
+    reset.textContent = "↺ Original";
+    reset.title = "Korrektur entfernen, erkannten Wert verwenden";
+    reset.addEventListener("click", () => setDropFix(song.id, undefined));
+    nodes.push(reset);
+  }
+  return nodes;
+}
+
+function renderDropFilter() {
+  const box = document.getElementById("marks-filter");
+  if (!box) return;
+  box.classList.toggle("hidden", marksTab !== "drops");
+  if (marksTab !== "drops") return;
+  box.innerHTML = "";
+  DROP_FILTERS.forEach(([key, label]) => {
+    const button = document.createElement("button");
+    button.textContent = label;
+    button.classList.toggle("active", dropFilter === key);
+    button.addEventListener("click", () => {
+      dropFilter = key;
+      renderMarksPanel();
+    });
+    box.appendChild(button);
+  });
+}
+
+// Reiter "Drops": erkannte Drop-Zeit pro Song ansehen und korrigieren
+function renderDropsTab(list, songs) {
+  const withWave = songs.filter((song) => song.wave);
+  const withoutWave = songs.length - withWave.length;
+  const term = marksSearch.trim().toLowerCase();
+
+  if (withoutWave > 0) {
+    const info = document.createElement("div");
+    info.className = "marks-sub";
+    const missingNames = songs.filter((song) => !song.wave).map((song) => song.display);
+    const shown = missingNames.slice(0, 6).join(", ") + (missingNames.length > 6 ? " …" : "");
+    info.textContent = `${withoutWave} Songs ohne Kurve sind hier nicht aufgeführt: ${shown}. Song-Analyse nötig, siehe Info → Dateien.`;
+    list.appendChild(info);
+  }
+
+  const rows = withWave
+    .filter((song) => !term || song.display.toLowerCase().includes(term))
+    .filter((song) => {
+      const first = firstDropTime(song);
+      if (dropFilter === "fixed") return Object.prototype.hasOwnProperty.call(dropFixes, song.id);
+      if (dropFilter === "long") return first !== null && first >= LONG_BUILDUP_S;
+      if (dropFilter === "none") return first === null;
+      return true;
+    })
+    .sort(compareByDisplay);
+
+  if (!rows.length) {
+    const empty = document.createElement("div");
+    empty.className = "marks-empty";
+    empty.textContent = withWave.length
+      ? "Keine Songs für diese Auswahl."
+      : "Noch keine Kurven geladen. Song-Analyse ausführen (Info → Dateien) und die Songs neu laden.";
+    list.appendChild(empty);
+    return;
+  }
+
+  rows.forEach((song) => {
+    const hasFix = Object.prototype.hasOwnProperty.call(dropFixes, song.id);
+    const detectedFirst = song.wave.drops.length ? song.wave.drops[0][0] : null;
+    const first = firstDropTime(song);
+
+    const row = document.createElement("div");
+    row.className = "marks-row" + (hasFix ? " fixed" : "");
+    const name = makeNameCell(song);
+    const detected = document.createElement("span");
+    detected.className = "marks-note";
+    detected.textContent =
+      (hasFix ? ` korrigiert, erkannt: ${formatDropTime(detectedFirst)}` : ` erkannt: ${formatDropTime(detectedFirst)}`) +
+      (pendingFixIds.has(song.id) ? " · ungesichert" : "");
+    name.appendChild(detected);
+
+    const controls = document.createElement("span");
+    controls.className = "marks-controls";
+    controls.append(...buildDropControls(song));
+    row.append(makePreviewButton(song, `Ab ${DROP_PREVIEW_LEAD_S} Sekunden vor dem Drop anspielen (zählt nicht mit)`), name, controls);
+    list.appendChild(row);
   });
 }
 
@@ -302,7 +649,7 @@ function marksFromData(data) {
   const result = emptyMarks();
   Object.keys(MARK_GROUPS).forEach((group) => {
     if (data && Array.isArray(data[group])) {
-      data[group].filter((x) => typeof x === "string").forEach((id) => result[group].add(id));
+      data[group].filter((x) => typeof x === "string").forEach((id) => result[group].add(nfc(id)));
     }
   });
   return result;
@@ -325,9 +672,9 @@ function readMarksBackup() {
 
 // Merkt sich den aktuellen Stand (ein Platz), bevor er durch Zuruecksetzen/Einlesen ersetzt wird
 function takeMarksBackup() {
-  if (marksCount() === 0) return;
+  if (marksCount() === 0 && Object.keys(dropFixes).length === 0) return;
   try {
-    const data = { savedAt: new Date().toISOString() };
+    const data = { savedAt: new Date().toISOString(), dropFixes };
     Object.keys(MARK_GROUPS).forEach((group) => {
       data[group] = [...marks[group]];
     });
@@ -358,8 +705,10 @@ function restoreMarksBackup() {
   const backup = readMarksBackup();
   if (!backup) return;
   const restored = marksFromData(backup);
+  const restoredFixes = sanitizeFixes(backup.dropFixes);
   takeMarksBackup(); // aktueller Stand wird zur neuen Sicherheitskopie, so ist es umkehrbar
   marks = restored;
+  dropFixes = restoredFixes;
   marksDirty = true;
   afterMarksChangedBulk();
   showToast(`Letzter Stand wiederhergestellt: ${marksCount()} Markierungen.`, "info");
@@ -458,6 +807,7 @@ function toggleMark(group, id) {
   if (marks[group].has(id)) marks[group].delete(id);
   else marks[group].add(id);
   marksDirty = true;
+  pendingMarkChanges += 1;
   saveMarks();
   updateSongMarks(id);
   updateMarksStatus();
@@ -469,14 +819,22 @@ function updateMarksStatus() {
   if (!marksDirty) {
     marksUnsavedChanges = 0;
     hideMarksHint();
+    if (pendingMarkChanges || pendingFixIds.size) {
+      pendingMarkChanges = 0;
+      pendingFixIds.clear();
+      saveMarks();
+    }
   }
   updateRestoreButton();
   const dot = document.getElementById("marks-dirty");
   if (dot) dot.classList.toggle("hidden", !marksDirty);
   const status = document.getElementById("marks-status");
   if (status) {
+    const parts = [];
+    if (pendingMarkChanges) parts.push(`${pendingMarkChanges} an Markierungen`);
+    if (pendingFixIds.size) parts.push(`${pendingFixIds.size} Drop-Korrektur${pendingFixIds.size === 1 ? "" : "en"}`);
     status.textContent = marksDirty
-      ? "Änderungen noch nicht gesichert"
+      ? `Änderungen noch nicht gesichert${parts.length ? ": " + parts.join(", ") : ""}`
       : "Gesichert / aus Datei geladen";
     status.classList.toggle("marks-status-dirty", marksDirty);
   }
@@ -486,6 +844,7 @@ function updateMarksStatus() {
 function closeMarkMenu() {
   const menu = document.getElementById("mark-menu");
   if (menu) menu.remove();
+  dropFixListener = null;
   document.removeEventListener("pointerdown", onMarkMenuOutside, true);
   if (menu && marksUnsavedChanges >= MARKS_HINT_MIN_CHANGES) maybeShowMarksHint();
 }
@@ -493,6 +852,17 @@ function closeMarkMenu() {
 function onMarkMenuOutside(event) {
   const menu = document.getElementById("mark-menu");
   if (menu && !menu.contains(event.target)) closeMarkMenu();
+}
+
+function placeMarkMenu(menu, anchor) {
+  const rect = anchor.getBoundingClientRect();
+  const width = menu.offsetWidth;
+  const height = menu.offsetHeight;
+  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+  let top = rect.bottom + 6;
+  if (top + height > window.innerHeight - 170) top = Math.max(60, rect.top - height - 6);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
 }
 
 function openMarkMenu(song, anchor) {
@@ -522,6 +892,38 @@ function openMarkMenu(song, anchor) {
     menu.appendChild(btn);
   });
 
+  // Drop-Zeit direkt im Menue korrigieren
+  const dropBox = document.createElement("div");
+  dropBox.className = "mark-menu-drop";
+  const renderDropBox = () => {
+    dropBox.innerHTML = "";
+    if (!song.wave) {
+      const note = document.createElement("span");
+      note.className = "marks-note";
+      note.textContent = "Keine Kurve vorhanden, Drop-Zeit nicht verfügbar";
+      dropBox.appendChild(note);
+      return;
+    }
+    const detectedFirst = song.wave.drops.length ? song.wave.drops[0][0] : null;
+    const label = document.createElement("div");
+    label.className = "mark-menu-label";
+    label.textContent = `Drop-Zeit (erkannt: ${formatDropTime(detectedFirst)})`;
+    const row = document.createElement("div");
+    row.className = "mark-menu-droprow";
+    row.append(
+      makePreviewButton(song, `Ab ${DROP_PREVIEW_LEAD_S} Sekunden vor dem Drop anspielen (zählt nicht mit)`),
+      ...buildDropControls(song)
+    );
+    dropBox.append(label, row);
+  };
+  renderDropBox();
+  dropFixListener = (id) => {
+    if (id !== song.id || !document.body.contains(menu)) return;
+    renderDropBox();
+    placeMarkMenu(menu, anchor);
+  };
+  menu.appendChild(dropBox);
+
   const done = document.createElement("button");
   done.className = "mark-menu-done";
   done.textContent = "Fertig";
@@ -529,14 +931,7 @@ function openMarkMenu(song, anchor) {
   menu.appendChild(done);
 
   document.body.appendChild(menu);
-  const rect = anchor.getBoundingClientRect();
-  const width = menu.offsetWidth;
-  const height = menu.offsetHeight;
-  const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-  let top = rect.bottom + 6;
-  if (top + height > window.innerHeight - 170) top = Math.max(60, rect.top - height - 6);
-  menu.style.left = `${left}px`;
-  menu.style.top = `${top}px`;
+  placeMarkMenu(menu, anchor);
   setTimeout(() => document.addEventListener("pointerdown", onMarkMenuOutside, true), 0);
 }
 
@@ -575,13 +970,23 @@ function renderMarksPanel() {
     const key = tab.dataset.tab;
     if (key === "all") {
       tab.textContent = `Alle Songs (${songs.length})`;
+    } else if (key === "drops") {
+      const fixed = Object.keys(dropFixes).length;
+      tab.textContent = fixed ? `Drops (${fixed} korrigiert)` : "Drops";
     } else {
       tab.textContent = `${MARK_GROUPS[key].symbol} ${MARK_GROUPS[key].label} (${marks[key].size})`;
     }
     tab.classList.toggle("active", key === marksTab);
   });
   const searchInput = document.getElementById("marks-search");
-  if (searchInput) searchInput.classList.toggle("hidden", marksTab !== "all");
+  if (searchInput) searchInput.classList.toggle("hidden", marksTab !== "all" && marksTab !== "drops");
+  renderDropFilter();
+  if (marksTab === "drops") {
+    renderDropsTab(list, songs);
+    list.scrollTop = scroll;
+    return;
+  }
+  if (marksTab === "slow") renderLongBuildupSuggestions(list, songs);
 
   let rows;
   if (marksTab === "all") {
@@ -635,7 +1040,7 @@ function renderMarksPanel() {
       name.appendChild(note);
     } else if (categories[row.song.category]) {
       // Kategorie als Hinweis, damit gleichnamige Songs unterscheidbar sind
-      note.textContent = ` ${categories[row.song.category].title}`;
+      note.textContent = ` ${categories[row.song.category].title}${wavesUsable && !row.song.wave ? " · keine Kurve" : ""}`;
       name.appendChild(note);
     }
 
@@ -705,7 +1110,7 @@ function importMarksFromText(text, source, extraInfo = "") {
   let data;
   try {
     data = JSON.parse(text);
-    if (!marksDirty && !marksEqual(marks, marksFromData(data))) takeMarksBackup();
+    if (!marksDirty && (!marksEqual(marks, marksFromData(data)) || !fixesEqual(sortedFixes(), sanitizeFixes(data.dropFixes)))) takeMarksBackup();
     applyMarksData(data, marksDirty ? "merge" : "replace");
   } catch (err) {
     console.error("Markierungsdatei unlesbar:", err);
@@ -872,8 +1277,21 @@ function buildSongButton(song, cat, range) {
   badge.className = "song-count";
   badge.textContent = count.toString();
   const markEl = createMarksEl(song.id);
-  if (markEl) btn.append(eq, name, markEl, badge);
-  else btn.append(eq, name, badge);
+  const parts = [eq, name];
+  if (wavesUsable && !song.wave) {
+    const noWave = document.createElement("span");
+    noWave.className = "song-nowave";
+    noWave.textContent = "\u2248";
+    noWave.title = "Keine Kurve – Song-Analyse ausführen";
+    parts.push(noWave);
+  }
+  if (markEl) parts.push(markEl);
+  parts.push(badge);
+  btn.append(...parts);
+  const dropBadge = document.createElement("span");
+  dropBadge.className = "drop-badge hidden";
+  dropBadge.dataset.base = "drop-badge";
+  btn.appendChild(dropBadge);
 
   // Langer Druck oeffnet das Markierungs-Menue; der folgende Klick spielt dann nicht ab
   let pressTimer = null;
@@ -979,6 +1397,168 @@ function handlePlaybackFailure(err, displayTitle) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Kurven und Drop-Countdown
+// Daten kommen aus waveforms.json (erzeugt mit tools/analyse.html) im Musikordner.
+// ---------------------------------------------------------------------------
+const WAVEFORMS_FILENAME = "waveforms.json";
+const DROP_NEAR_S = 5; // ab so vielen Sekunden vor dem Drop erscheint der Countdown
+const DROP_WARN_S = 3; // ab hier groesser und rot
+const DROP_FLASH_S = 1.2; // so lange bleibt "DROP!" stehen
+let waveforms = {};
+let wavesUsable = false; // waveforms.json wurde gefunden und gelesen
+let currentWave = null;
+let nowPlayingTimer = null;
+
+function decodeCurve(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function loadWaveformsFile(file) {
+  return file.text().then((text) => {
+    const data = JSON.parse(text);
+    if (!data || data.version !== 1 || typeof data.songs !== "object") {
+      throw new Error("Unbekanntes Format");
+    }
+    waveforms = {};
+    Object.entries(data.songs).forEach(([name, entry]) => {
+      if (!entry || typeof entry.curve !== "string") return;
+      waveforms[nfc(name)] = {
+        size: entry.size,
+        duration: entry.duration,
+        curve: decodeCurve(entry.curve),
+        drops: Array.isArray(entry.drops) ? entry.drops : [],
+      };
+    });
+    wavesUsable = true;
+  });
+}
+
+// Ordnet jedem Song seine Kurve zu (nur wenn Dateiname und Groesse passen)
+function applyWaveforms() {
+  const songs = getAllSongs();
+  const names = [];
+  songs.forEach((song) => {
+    const wave = waveforms[song.id];
+    song.wave = wave && wave.size === song.size ? wave : null;
+    if (!song.wave) names.push(song.display);
+  });
+  return { total: songs.length, missing: names.length, names };
+}
+
+function announceWaveforms(hasFile, total, missing, names = []) {
+  if (!total || !missing) return;
+  const list = names.length && names.length <= 3 ? ` (${names.join(", ")})` : "";
+  showToast(
+    hasFile
+      ? `${missing} von ${total} Songs haben noch keine Kurve${list}. Bitte die Song-Analyse ausführen (Info → Dateien).`
+      : "Keine Kurven gefunden (waveforms.json fehlt im Ordner). Bitte die Song-Analyse ausführen (Info → Dateien).",
+    "info"
+  );
+}
+
+function lookupWave(songId) {
+  if (!songId) return null;
+  const song = getAllSongs().find((item) => item.id === songId);
+  return song && song.wave ? { ...song.wave, drops: effectiveDrops(songId, song.wave) } : null;
+}
+
+// text: volle Anzeige in Now Playing, shortText: kurze Anzeige im Song-Button
+function setDropState(state, text, shortText = text) {
+  const targets = [nowPlayingEls.drop, ...document.querySelectorAll(".song-button.is-playing .drop-badge")];
+  targets.forEach((el) => {
+    if (!el) return;
+    const base = el.dataset.base || "drop-badge";
+    el.className = state ? `${base} ${state}` : `${base} hidden`;
+    el.textContent = state ? (base === "np-drop" ? text : shortText) : "";
+  });
+}
+
+function drawNowPlayingChart(currentTime) {
+  const { chart } = nowPlayingEls;
+  if (!chart || !currentWave) return;
+  const cssWidth = chart.clientWidth;
+  const cssHeight = chart.clientHeight;
+  if (!cssWidth || !cssHeight) return;
+  const ratio = window.devicePixelRatio || 1;
+  if (chart.width !== Math.round(cssWidth * ratio) || chart.height !== Math.round(cssHeight * ratio)) {
+    chart.width = Math.round(cssWidth * ratio);
+    chart.height = Math.round(cssHeight * ratio);
+  }
+  const ctx = chart.getContext("2d");
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+
+  const curve = currentWave.curve;
+  const duration = currentWave.duration || (audioEl && audioEl.duration) || curve.length / 2;
+  const progress = Math.max(0, Math.min(1, currentTime / duration));
+  const barWidth = cssWidth / curve.length;
+  for (let i = 0; i < curve.length; i += 1) {
+    const height = Math.max(2, (curve[i] / 255) * (cssHeight - 6));
+    ctx.fillStyle = (i + 0.5) / curve.length <= progress ? "#60a5fa" : "#4b5563";
+    ctx.fillRect(i * barWidth + 0.5, cssHeight - height, Math.max(1, barWidth - 1), height);
+  }
+
+  // Drops: der naechste (erste noch kommende) kraeftig, die uebrigen dezent
+  let nextMarked = false;
+  currentWave.drops.forEach((drop) => {
+    const x = Math.round((drop[0] / duration) * cssWidth);
+    const upcoming = drop[0] > currentTime;
+    const isNext = upcoming && !nextMarked;
+    if (isNext) nextMarked = true;
+    ctx.fillStyle = isNext ? "#fbbf24" : upcoming ? "#92400e" : "rgba(146, 64, 14, 0.5)";
+    ctx.fillRect(x - 1, 0, 2, cssHeight);
+    ctx.beginPath();
+    ctx.moveTo(x - 4, 0);
+    ctx.lineTo(x + 4, 0);
+    ctx.lineTo(x, 6);
+    ctx.closePath();
+    ctx.fill();
+  });
+
+  // Abspiel-Strich
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(Math.round(progress * cssWidth) - 1, 0, 2, cssHeight);
+}
+
+function tickNowPlaying() {
+  if (!currentWave || !audioEl) return;
+  const time = audioEl.currentTime || 0;
+  drawNowPlayingChart(time);
+  // Countdown nur fuer den ersten Drop des Songs
+  const first = currentWave.drops[0];
+  if (!first) {
+    setDropState(null, "");
+    return;
+  }
+  const remaining = first[0] - time;
+  if (remaining > DROP_NEAR_S) setDropState(null, "");
+  else if (remaining > DROP_WARN_S) setDropState("near", `Drop in ${Math.ceil(remaining)}`, `▼${Math.ceil(remaining)}`);
+  else if (remaining > 0) setDropState("warn", `Drop in ${Math.ceil(remaining)}`, `▼${Math.ceil(remaining)}`);
+  else if (remaining > -DROP_FLASH_S) setDropState("now", "DROP!");
+  else setDropState(null, "");
+}
+
+function stopNowPlayingTicker() {
+  clearInterval(nowPlayingTimer);
+  nowPlayingTimer = null;
+  setDropState(null, "");
+}
+
+function startNowPlayingTicker() {
+  stopNowPlayingTicker();
+  const hasWave = !!currentWave;
+  const { chartWrap, progress } = nowPlayingEls;
+  if (chartWrap) chartWrap.classList.toggle("hidden", !hasWave);
+  if (progress) progress.classList.toggle("hidden", hasWave);
+  if (!hasWave) return;
+  tickNowPlaying();
+  nowPlayingTimer = setInterval(tickNowPlaying, 100);
+}
+
 function playAudio(file, displayTitle = "", categoryKey = null, songId = null) {
   const el = getAudioElement();
   if (!el) return;
@@ -1007,10 +1587,12 @@ function playAudio(file, displayTitle = "", categoryKey = null, songId = null) {
   currentAudio = el;
   nowPlaying.category = categoryKey || null;
   nowPlayingId = songId || null;
+  currentWave = lookupWave(songId);
   rememberPlayed(songId);
   incrementPlayCount(songId || displayTitle || file, categoryKey);
   updatePlayingHighlight();
   showNowPlaying(displayTitle);
+  startNowPlayingTicker();
   resumeAudioContext();
   el.onloadedmetadata = () => {
     updateNowPlayingDuration(el);
@@ -1137,6 +1719,7 @@ function showNowPlaying(title = "") {
   nowPlaying.title = title || "Playing";
   if (t) t.textContent = nowPlaying.title;
   if (eta) eta.textContent = "--:--";
+  if (nowPlayingEls.elapsed) nowPlayingEls.elapsed.textContent = "0:00";
   if (nowPlayingEls.bar) nowPlayingEls.bar.style.width = "100%";
   if (box) box.classList.remove("hidden");
 }
@@ -1151,6 +1734,7 @@ function updateNowPlayingEta(el) {
   if (!eta || !el) return;
   const remaining = (el.duration || 0) - (el.currentTime || 0);
   eta.textContent = formatTime(remaining);
+  if (nowPlayingEls.elapsed) nowPlayingEls.elapsed.textContent = formatTime(el.currentTime || 0);
   toggleNowPlayingWarning(remaining);
   const { bar } = nowPlayingEls;
   if (bar) {
@@ -1163,9 +1747,12 @@ function clearNowPlaying() {
   const { box, eta, bar } = nowPlayingEls;
   nowPlaying = { title: "", duration: 0, category: null };
   nowPlayingId = null;
+  currentWave = null;
+  stopNowPlayingTicker();
   updatePlayingHighlight();
   if (bar) bar.style.width = "0";
   if (eta) eta.textContent = "--:--";
+  if (nowPlayingEls.elapsed) nowPlayingEls.elapsed.textContent = "0:00";
   if (box) box.classList.add("hidden");
   toggleNowPlayingWarning(Infinity);
   sendNowPlayingStatus({ title: "", category: null, duration: 0, stopped: true });
@@ -1205,7 +1792,12 @@ document.addEventListener("DOMContentLoaded", () => {
     box: document.getElementById("now-playing"),
     title: document.getElementById("now-playing-title"),
     eta: document.getElementById("now-playing-eta"),
+    elapsed: document.getElementById("now-playing-elapsed"),
     bar: document.getElementById("now-playing-bar"),
+    progress: document.querySelector("#now-playing .np-progress"),
+    chartWrap: document.getElementById("np-chart-wrap"),
+    chart: document.getElementById("np-chart"),
+    drop: document.getElementById("np-drop"),
   };
   headerEls = {
     block: document.getElementById("header-block"),
@@ -1311,7 +1903,11 @@ function loadPlayCounts() {
   try {
     const data = localStorage.getItem("songPlayCounts");
     if (data) {
-      songPlayCounts = JSON.parse(data);
+      songPlayCounts = {};
+      Object.entries(JSON.parse(data)).forEach(([id, count]) => {
+        const key = nfc(id); // aeltere Zaehler mit zerlegten Namen zusammenfuehren
+        songPlayCounts[key] = (songPlayCounts[key] || 0) + (Number(count) || 0);
+      });
     }
   } catch (e) {
     console.warn("Konnte songPlayCounts nicht laden:", e);
@@ -1336,6 +1932,7 @@ function initZoomControls() {
   const { level, inBtn, outBtn, resetBtn } = zoomEls;
   const applyZoom = () => {
     document.documentElement.style.fontSize = `${16 * zoomLevel}px`;
+    updateNowPlayingWidth();
     if (level) level.textContent = `${Math.round(zoomLevel * 100)}%`;
   };
   applyZoom();
@@ -1369,7 +1966,7 @@ function collapseHeader() {
   headerEls.block.classList.add("header-hidden");
   headerEls.block.style.display = "none";
   if (headerEls.toggle) {
-    headerEls.toggle.textContent = "Kopf einblenden";
+    headerEls.toggle.textContent = "Kopf ein";
     headerEls.toggle.dataset.collapsed = "true";
   }
   document.body.classList.add("header-collapsed");
@@ -1380,7 +1977,7 @@ function toggleHeaderVisibility() {
   const hidden = headerEls.block.classList.toggle("header-hidden");
   headerEls.block.style.display = hidden ? "none" : "";
   if (headerEls.toggle) {
-    headerEls.toggle.textContent = hidden ? "Kopf einblenden" : "Kopf ausblenden";
+    headerEls.toggle.textContent = hidden ? "Kopf ein" : "Kopf aus";
     headerEls.toggle.dataset.collapsed = hidden ? "true" : "false";
   }
   document.body.classList.toggle("header-collapsed", hidden);
@@ -1476,6 +2073,27 @@ function clearSearch() {
   renderCategories();
 }
 
+// Now Playing so breit wie moeglich, ohne die obere Leiste zu verdraengen
+const NP_MIN_REM = 18;
+const NP_MAX_REM = 30;
+
+function updateNowPlayingWidth() {
+  const bar = document.getElementById("top-bar");
+  if (!bar) return;
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  // natuerliche Breite der Leiste (der dehnbare Abstandshalter zaehlt dabei 0)
+  const previousRight = bar.style.right;
+  const previousWidth = bar.style.width;
+  bar.style.right = "auto";
+  bar.style.width = "max-content";
+  const natural = bar.offsetWidth;
+  bar.style.right = previousRight;
+  bar.style.width = previousWidth;
+  const available = window.innerWidth - natural - 1.5 * rem; // Raender links/rechts und Abstand
+  const width = Math.max(NP_MIN_REM * rem, Math.min(NP_MAX_REM * rem, available));
+  document.documentElement.style.setProperty("--np-width", `${Math.round(width)}px`);
+}
+
 function updateBottomBarHeight() {
   const bar = document.querySelector(".bottom-bar");
   if (bar) document.documentElement.style.setProperty("--bottom-bar-h", `${bar.offsetHeight}px`);
@@ -1499,6 +2117,10 @@ function initInfoUI() {
 
   // Fenster sollen immer ueber der unteren Leiste enden, auch wenn sich deren Hoehe aendert
   updateBottomBarHeight();
+  updateNowPlayingWidth();
+  window.addEventListener("resize", updateNowPlayingWidth);
+  window.addEventListener("load", updateNowPlayingWidth);
+  setTimeout(updateNowPlayingWidth, 400);
   window.addEventListener("resize", updateBottomBarHeight);
   const bar = document.querySelector(".bottom-bar");
   if (bar && typeof ResizeObserver !== "undefined") {

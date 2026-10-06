@@ -118,7 +118,7 @@ body.h-screen {
 }
 
 .search-input {
-  width: 140px;
+  width: 110px;
 }
 
 .search-hit {
@@ -162,7 +162,7 @@ body.h-screen {
   position: fixed;
   top: 0.5rem;
   left: 0.5rem;
-  right: 19rem;
+  right: calc(var(--np-width, 18rem) + 1rem);
   z-index: 40;
   display: flex;
   align-items: center;
@@ -365,8 +365,8 @@ body.h-screen {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-  min-width: 14rem;
-  max-width: 90vw;
+  min-width: 18rem;
+  max-width: 94vw;
   padding: 0.6rem;
   color: #fff;
   background: #1f2937;
@@ -757,4 +757,176 @@ body.h-screen {
   background: rgba(30, 64, 175, 0.35);
   border-left: 4px solid #3b82f6;
   border-radius: 0.5rem;
+}
+
+/* Now Playing: Restzeit links, gespielte Zeit rechts */
+.np-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #d1d5db;
+  font-variant-numeric: tabular-nums;
+}
+
+.np-label {
+  margin-right: 0.15rem;
+  color: #9ca3af;
+}
+
+/* ---- Kurve und Drop-Countdown ---- */
+.song-button {
+  position: relative;
+}
+
+.np-chart {
+  position: relative;
+  height: 48px;
+  margin-top: 6px;
+}
+
+.np-chart canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.np-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 1.6rem;
+}
+
+.np-head #now-playing-title {
+  min-width: 0;
+  flex: 1;
+}
+
+.np-drop {
+  flex: none;
+  padding: 0 0.6rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  white-space: nowrap;
+  color: #111827;
+  background: #fbbf24;
+  border-radius: 0.5rem;
+}
+
+.np-drop.warn {
+  font-size: 1.1rem;
+  color: #fff;
+  background: #b91c1c;
+  animation: drop-pulse 0.4s ease-in-out infinite alternate;
+}
+
+.np-drop.now {
+  font-size: 1.2rem;
+  color: #111827;
+  background: #fde047;
+  animation: drop-pulse 0.2s ease-in-out infinite alternate;
+}
+
+.drop-badge {
+  flex: none;
+  padding: 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  color: #111827;
+  background: #fbbf24;
+  border-radius: 999px;
+}
+
+.drop-badge.warn {
+  color: #fff;
+  background: #b91c1c;
+}
+
+.drop-badge.now {
+  color: #fff;
+  background: #dc2626;
+}
+
+@keyframes drop-pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .np-drop.warn,
+  .np-drop.now {
+    animation: none;
+  }
+}
+
+/* Now Playing nimmt die Breite, die die obere Leiste uebrig laesst (siehe updateNowPlayingWidth) */
+.np-box {
+  width: var(--np-width, 18rem);
+}
+
+/* ---- Drop-Zeiten und Vorschlaege in der Verwaltung ---- */
+.marks-sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0.2rem 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fbbf24;
+}
+
+.marks-row.suggestion {
+  background: rgba(146, 64, 14, 0.15);
+}
+
+.marks-row.fixed {
+  background: rgba(30, 64, 175, 0.18);
+}
+
+.drop-input {
+  width: 4.6rem;
+  padding: 0.3rem 0.4rem;
+  color: #000;
+  text-align: right;
+  background: #fff;
+  border-radius: 0.4rem;
+}
+
+/* Song ohne Kurve: kleines, dezentes Zeichen */
+.song-nowave {
+  flex: none;
+  font-size: 0.8rem;
+  line-height: 1;
+  color: #9ca3af;
+  opacity: 0.85;
+}
+
+/* Drop-Zeit im Langdruck-Menue */
+.mark-menu-drop {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #374151;
+}
+
+.mark-menu-label {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.mark-menu-droprow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
 }

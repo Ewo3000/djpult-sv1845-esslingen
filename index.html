@@ -35,10 +35,19 @@
       </div>
       </div>
       <!-- Now Playing Banner -->
-      <div id="now-playing" class="fixed top-2 right-2 z-40 bg-gray-800 text-white text-sm px-3 py-2 rounded-xl shadow hidden w-72 max-w-sm">
-        <div id="now-playing-title" class="font-semibold truncate">--</div>
-        <div id="now-playing-eta" class="text-xs text-gray-300">--:--</div>
+      <div id="now-playing" class="np-box fixed top-2 right-2 z-40 bg-gray-800 text-white text-sm px-3 py-2 rounded-xl shadow hidden">
+        <div class="np-head">
+          <div id="now-playing-title" class="font-semibold truncate">--</div>
+          <div id="np-drop" class="np-drop hidden" data-base="np-drop"></div>
+        </div>
+        <div class="np-times">
+          <span><span class="np-label">Rest</span> <span id="now-playing-eta">--:--</span></span>
+          <span><span class="np-label">Gespielt</span> <span id="now-playing-elapsed">0:00</span></span>
+        </div>
         <div class="np-progress"><div id="now-playing-bar" class="np-progress-bar"></div></div>
+        <div id="np-chart-wrap" class="np-chart hidden">
+          <canvas id="np-chart"></canvas>
+        </div>
       </div>
       <!-- Info / Release Notes -->
       <div id="version-panel" class="fixed top-10 right-10 bg-gray-800 text-white text-xs px-3 py-2 rounded shadow hidden z-50 w-72 panel-max overflow-y-auto">
@@ -80,7 +89,7 @@
             <ul>
               <li><strong>Zoom −/+:</strong> Größe der Oberfläche.</li>
               <li><strong>Suche:</strong> Treffer werden hervorgehoben. Nach einem Klick auf einen Song leert sich die Suche.</li>
-              <li><strong>Kopf ausblenden/einblenden:</strong> mehr Platz für die Songs.</li>
+              <li><strong>Kopf aus/ein:</strong> blendet den Titelbereich ein oder aus, mehr Platz für die Songs.</li>
               <li><strong>Vol:</strong> Lautstärke. <strong>Markierungen:</strong> Verwaltung. <strong>Info:</strong> diese Anleitung.</li>
               <li><strong>vX.Y:</strong> Version und Änderungen. <strong>Reset:</strong> setzt alle Play-Zähler auf 0.</li>
             </ul>
@@ -99,7 +108,8 @@
               <li><strong>Stop:</strong> blendet den Song aus.</li>
             </ul>
             <h3>Oben rechts: Now Playing</h3>
-            <p>Titel, Restzeit und ein Balken. Bei weniger als 10 Sekunden Restzeit wird die Anzeige rot.</p>
+            <p>Titel, Rest- und gespielte Zeit. Bei weniger als 10 Sekunden Restzeit wird die Anzeige rot.</p>
+            <p>Hat ein Song eine <strong>Kurve</strong> (siehe Reiter „Dateien“), zeigt Now Playing den Lautstärkeverlauf des ganzen Songs mit Abspiel-Strich. Der <strong>orange Strich</strong> ist der erste Drop. <strong>5 Sekunden davor</strong> erscheint „Drop in 5“, ab 3 Sekunden größer und rot, im Moment des Drops kurz „DROP!“. Dasselbe als kleines Schild oben am laufenden Song-Button.</p>
           </section>
 
           <section data-info-section="dateien" class="hidden">
@@ -116,6 +126,12 @@
               <li><code>_TIMEOUT</code> → Button Timeout, <code>_WALKON</code> → Button Walk-On</li>
               <li><code>_PAUSE1</code>, <code>_PAUSE2</code> … → je ein Pause-Button, automatisch angelegt</li>
             </ul>
+            <h3>Kurven und Drops (Song-Analyse)</h3>
+            <ul>
+              <li>Die Kurven und die Drop-Zeiten stehen in der Datei <code>waveforms.json</code> im Ordner <code>Songs laden</code>. Sie wird beim Laden der Songs automatisch eingelesen.</li>
+              <li><strong>Neue oder ausgetauschte Songs?</strong> Dann zeigt die App beim Laden einen Hinweis „… Songs haben noch keine Kurve“. Am PC (Chrome oder Edge) <a href="tools/analyse.html" target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:underline">tools/analyse.html</a> öffnen, den Ordner <code>Songs laden</code> wählen und die Analyse laufen lassen. Es werden nur neue oder geänderte Songs berechnet, die Datei wird direkt im Ordner gespeichert.</li>
+              <li>Songs ohne Kurve funktionieren ganz normal, sie zeigen nur den einfachen Fortschrittsbalken und keinen Countdown. Ein kleines <strong>≈</strong> am Song-Button zeigt dir, welche Songs noch keine Kurve haben.</li>
+            </ul>
             <div class="info-tip">
               <strong>Wichtig:</strong> Play-Zähler und Markierungen hängen am Dateinamen. Wird ein Song umbenannt, beginnt er bei 0 und seine Markierungen sind weg. Formate: mp3, flac, wav, ogg.
             </div>
@@ -131,8 +147,14 @@
             </ul>
             <h3>Markieren</h3>
             <ul>
-              <li><strong>Schnell:</strong> Einen Song im Pult etwa eine Sekunde <strong>lange drücken</strong> und im Menü die Markierungen an- oder ausschalten.</li>
+              <li><strong>Schnell:</strong> Einen Song im Pult etwa eine Sekunde <strong>lange drücken</strong> und im Menü die Markierungen an- oder ausschalten. Im selben Menü kannst du auch die <strong>Drop-Zeit</strong> des Songs korrigieren oder „Kein Drop“ wählen.</li>
               <li><strong>Verwalten:</strong> Button <strong>Markierungen</strong> öffnet die Liste mit Reitern für alle Songs (mit Suche und ▶ zum Anhören, das nicht mitzählt) und für jede Markierung. Dort kannst du Songs entfernen oder weiteren Markierungen zuordnen.</li>
+            </ul>
+                        <h3>Drop-Zeiten und Langer Aufbau</h3>
+            <ul>
+              <li>Reiter <strong>Drops</strong> in der Verwaltung: Pro Song steht die erkannte Drop-Zeit. Mit ▶ spielst du den Song ab 6 Sekunden vor dem Drop an und siehst den Countdown. Stimmt die Zeit nicht, trägst du die richtige ein oder wählst <strong>Kein Drop</strong>. <strong>↺ Original</strong> nimmt die Korrektur zurück.</li>
+              <li>Reiter <strong>Langer Aufbau</strong>: Oben stehen <strong>Vorschläge</strong> für Songs, deren erster Drop erst ab 10 Sekunden kommt. Einzeln übernehmen oder mit „Alle übernehmen“.</li>
+              <li>Die Korrekturen werden zusammen mit den Markierungen in <code>markierungen.json</code> gesichert.</li>
             </ul>
             <h3>Sichern in 3 Schritten</h3>
             <ol>
@@ -143,7 +165,7 @@
             <p>Beim nächsten „Songs laden“ wird die Datei <code>markierungen.json</code> automatisch eingelesen (bei mehreren Dateien die neueste). Der orange Punkt am Button „Markierungen“ heißt: noch nicht gesichert.</p>
             <h3>Sicherheit</h3>
             <ul>
-              <li>Jede Änderung wird automatisch im Browser gespeichert. Nach ein paar Änderungen erinnert ein kleiner Hinweis ans Sichern.</li>
+              <li>Jede Änderung wird automatisch im Browser gespeichert. Oben im Fenster steht, was noch ungesichert ist (zum Beispiel „3 an Markierungen, 2 Drop-Korrekturen“). Nach ein paar Änderungen erinnert ein kleiner Hinweis ans Sichern.</li>
               <li>Vor „Alles zurücksetzen“ und vor dem Einlesen einer anderen Datei merkt sich die App den letzten Stand: <strong>Letzten Stand wiederherstellen</strong> holt ihn zurück.</li>
               <li>Für dauerhafte Speicherung die Seite als App installieren (Reiter „Remote &amp; App“).</li>
             </ul>
@@ -183,7 +205,9 @@
           <button data-tab="clap">Mitklatschen</button>
           <button data-tab="slow">Langer Aufbau</button>
           <button data-tab="quiet">Zu leise</button>
+          <button data-tab="drops">Drops</button>
         </div>
+        <div id="marks-filter" class="marks-tabs hidden"></div>
         <input id="marks-search" type="search" placeholder="Song suchen" />
         <div id="marks-list" class="marks-list"></div>
         <div class="marks-foot">
@@ -199,16 +223,15 @@
 <!-- Kopfleiste -->
       <div id="top-bar" class="top-bar">
         <div class="top-group">
-          <span class="text-gray-400">Zoom</span>
-          <button id="zoom-out" class="top-btn">&minus;</button>
+          <button id="zoom-out" class="top-btn" title="Kleiner">&minus;</button>
           <span id="zoom-level" class="w-10 text-center">100%</span>
-          <button id="zoom-in" class="top-btn">+</button>
+          <button id="zoom-in" class="top-btn" title="Größer">+</button>
         </div>
         <span class="top-sep"></span>
         <div class="top-group">
           <input id="search-input" type="search" placeholder="Song suchen" class="search-input text-black px-2 py-1 rounded-lg" />
           <span id="search-count" class="text-xs text-gray-400 whitespace-nowrap">0 Treffer</span>
-          <button id="toggle-header" class="top-btn text-xs">Kopf ausblenden</button>
+          <button id="toggle-header" class="top-btn text-xs" title="Kopfbereich mit Titel und Buttons ein- oder ausblenden">Kopf aus</button>
         </div>
         <span class="top-spacer"></span>
         <div class="top-group">
