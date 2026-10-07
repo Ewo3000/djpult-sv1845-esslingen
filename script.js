@@ -2156,6 +2156,8 @@ function updateWheelLook(scroller) {
   });
 }
 
+const WHEEL_COPIES = 9; // Liste wird mehrfach hintereinander gebaut, so wirkt die Walze endlos
+
 function buildPauseWheel(tracks, startIndex) {
   const wheel = document.createElement("div");
   wheel.className = "pause-wheel";
@@ -2165,39 +2167,70 @@ function buildPauseWheel(tracks, startIndex) {
   band.className = "wheel-band";
   band.setAttribute("aria-hidden", "true");
 
-  const items = tracks.map((track, i) => {
-    const label = `Pause: ${track.display || `Pause ${track.number || startIndex + i + 1}`}`;
-    const item = document.createElement("button");
-    item.className = "wheel-item";
-    item.textContent = track.display || `Pause ${track.number || startIndex + i + 1}`;
-    item.title = label;
-    item.addEventListener("click", () => {
-      if (item.classList.contains("is-center")) {
-        playAudio(track.url, label);
-      } else {
-        scroller.scrollTo({ top: item.offsetTop - (scroller.clientHeight - item.offsetHeight) / 2, behavior: "smooth" });
-      }
+  const count = tracks.length;
+  const items = [];
+  for (let copy = 0; copy < WHEEL_COPIES; copy += 1) {
+    tracks.forEach((track, i) => {
+      const name = track.display || `Pause ${track.number || startIndex + i + 1}`;
+      const label = `Pause: ${name}`;
+      const item = document.createElement("button");
+      item.className = "wheel-item";
+      item.textContent = name;
+      item.title = label;
+      item.addEventListener("click", () => {
+        if (item.classList.contains("is-center")) {
+          playAudio(track.url, label);
+        } else {
+          scroller.scrollTo({ top: centerTop(item), behavior: "smooth" });
+        }
+      });
+      scroller.appendChild(item);
+      items.push(item);
     });
-    scroller.appendChild(item);
-    return item;
-  });
+  }
 
   wheel.append(scroller, band);
 
+  const centerTop = (item) => item.offsetTop - (scroller.clientHeight - item.offsetHeight) / 2;
+  const copyHeight = () => (count ? items[count].offsetTop - items[0].offsetTop : 0);
+
+  // Springt unmerklich in die mittlere Kopie zurueck (gleicher Inhalt, daher kein sichtbarer Sprung)
+  const recenter = (onlyIfNearEdge) => {
+    const h = copyHeight();
+    if (!h) return;
+    const base = Math.floor((scroller.scrollTop - centerTop(items[0])) / h + 1e-6);
+    const mid = Math.floor(WHEEL_COPIES / 2);
+    if (base === mid) return;
+    if (onlyIfNearEdge && base >= 1 && base <= WHEEL_COPIES - 3) return;
+    scroller.scrollTop -= (base - mid) * h;
+  };
+
+  let placed = false;
   const layout = () => {
     if (!items.length || !items[0].offsetHeight) return;
     const pad = Math.max(0, (scroller.clientHeight - items[0].offsetHeight) / 2);
     scroller.style.paddingTop = `${pad}px`;
     scroller.style.paddingBottom = `${pad}px`;
+    if (!placed) {
+      placed = true;
+      scroller.style.scrollSnapType = "none";
+      scroller.scrollTop = centerTop(items[Math.floor(WHEEL_COPIES / 2) * count]);
+      requestAnimationFrame(() => (scroller.style.scrollSnapType = ""));
+    }
     updateWheelLook(scroller);
   };
   let frame = null;
+  let idle = null;
   scroller.addEventListener("scroll", () => {
-    if (frame) return;
-    frame = requestAnimationFrame(() => {
-      frame = null;
-      updateWheelLook(scroller);
-    });
+    if (!frame) {
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        updateWheelLook(scroller);
+      });
+    }
+    recenter(true);
+    clearTimeout(idle);
+    idle = setTimeout(() => recenter(false), 120);
   });
   if (window.ResizeObserver) new ResizeObserver(layout).observe(wheel);
   setTimeout(layout, 0);
