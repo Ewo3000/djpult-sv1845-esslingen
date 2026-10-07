@@ -1344,13 +1344,29 @@ function initMarksUI() {
   }
 }
 
+// Zaehlgruppen: Farbe/Rahmen (Heatmap) richten sich nach dem Vergleich innerhalb der Gruppe
+const COUNT_GROUPS = [
+  ["ass_angriff", "block", "sonstiges", "noch_mehr", "noch_mehr2"], // Eigene Punkte
+  ["gegner"], // Gegnerpunkte
+  ["spass"], // Lustig
+];
+
+function countGroupOf(key) {
+  return COUNT_GROUPS.find((group) => group.includes(key)) || [key];
+}
+
 function getCountRange(cat) {
   let min = Infinity;
   let max = -Infinity;
-  cat.items.forEach((song) => {
-    const count = songPlayCounts[song.id] || 0;
-    if (count < min) min = count;
-    if (count > max) max = count;
+  const key = Object.keys(categories).find((k) => categories[k] === cat);
+  countGroupOf(key).forEach((groupKey) => {
+    const groupCat = categories[groupKey];
+    if (!groupCat) return;
+    groupCat.items.forEach((song) => {
+      const count = songPlayCounts[song.id] || 0;
+      if (count < min) min = count;
+      if (count > max) max = count;
+    });
   });
   return { min: min === Infinity ? 0 : min, max: max === -Infinity ? 0 : max };
 }
@@ -2054,15 +2070,16 @@ function loadPlayCounts() {
 }
 
 function renderSingleCategory(key) {
-  const cat = categories[key];
-  if (!cat) return;
-  const container = document.querySelector(`#col-${key}`);
-  if (!container) return;
-  container.innerHTML = "";
-
-  const range = getCountRange(cat);
-  cat.items.forEach((song) => {
-    container.appendChild(buildSongButton(song, cat, range));
+  // Alle Spalten der Zaehlgruppe neu zeichnen, da sich die Vergleichswerte aendern
+  countGroupOf(key).forEach((groupKey) => {
+    const cat = categories[groupKey];
+    const container = document.querySelector(`#col-${groupKey}`);
+    if (!cat || !container) return;
+    container.innerHTML = "";
+    const range = getCountRange(cat);
+    cat.items.forEach((song) => {
+      container.appendChild(buildSongButton(song, cat, range));
+    });
   });
   updateSearchCount(countSearchHits());
 }
