@@ -2140,7 +2140,7 @@ function toggleHeaderVisibility() {
 }
 
 // Pausen-Songs als drehbare Walzen: wischen waehlt, Tippen auf den mittleren Eintrag spielt ab
-const PAUSE_WHEEL_MAX = 5; // ab mehr Songs werden zwei Walzen gebaut
+const PAUSE_BUTTONS_MAX = 4; // bis zu so vielen Songs bleiben normale Knoepfe, darueber gibt es zwei Walzen
 
 function updateWheelLook(scroller) {
   const items = scroller.querySelectorAll(".wheel-item");
@@ -2212,15 +2212,24 @@ function renderPauseButtons() {
   if (!Array.isArray(specialTracks.pauses) || specialTracks.pauses.length === 0) return;
 
   const sorted = [...specialTracks.pauses].sort((a, b) => (a.number || 0) - (b.number || 0));
-  const groups = sorted.length > PAUSE_WHEEL_MAX
-    ? [sorted.slice(0, Math.ceil(sorted.length / 2)), sorted.slice(Math.ceil(sorted.length / 2))]
-    : [sorted];
-  container.style.gridTemplateColumns = `repeat(${groups.length}, minmax(0, 1fr))`;
-  let offset = 0;
-  groups.forEach((group) => {
-    container.appendChild(buildPauseWheel(group, offset));
-    offset += group.length;
-  });
+
+  if (sorted.length <= PAUSE_BUTTONS_MAX) {
+    container.style.gridTemplateColumns = "";
+    sorted.forEach((track, idx) => {
+      const label = `Pause: ${track.display || `Pause ${track.number || idx + 1}`}`;
+      const btn = document.createElement("button");
+      btn.className = "pause-button bg-[#2b3445] hover:bg-[#364156] rounded-xl text-base leading-tight px-2 py-2 w-full";
+      btn.textContent = label;
+      btn.addEventListener("click", () => playAudio(track.url, label));
+      container.appendChild(btn);
+    });
+    return;
+  }
+
+  const half = Math.ceil(sorted.length / 2);
+  container.style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
+  container.appendChild(buildPauseWheel(sorted.slice(0, half), 0));
+  container.appendChild(buildPauseWheel(sorted.slice(half), half));
 }
 
 function initCategoryScrollSync() {
