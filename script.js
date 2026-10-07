@@ -1852,14 +1852,14 @@ function setVolume(value) {
 function updateSpecialButtons() {
   const map = [
     { id: "btn-timeout", key: "timeout", fallback: "Timeout", prefix: "" },
-    { id: "btn-walkon", key: "walkon", fallback: "Walk-On", prefix: "" },
+    { id: "btn-walkon", key: "walkon", fallback: "Walk-On", prefix: "", fixed: true }, // Beschriftung bleibt immer "Walk-On"
   ];
 
-  map.forEach(({ id, key, fallback, prefix }) => {
+  map.forEach(({ id, key, fallback, prefix, fixed }) => {
     const btn = document.getElementById(id);
     if (!btn) return;
     const track = specialTracks[key];
-    if (track && track.display) {
+    if (!fixed && track && track.display) {
       btn.textContent = prefix ? `${prefix}${track.display}` : track.display;
     } else {
       btn.textContent = fallback;
