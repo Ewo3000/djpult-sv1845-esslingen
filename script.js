@@ -2139,6 +2139,71 @@ function toggleHeaderVisibility() {
   document.body.classList.toggle("header-collapsed", hidden);
 }
 
+// Pausen-Songs als drehbare Walzen: wischen waehlt, Tippen auf den mittleren Eintrag spielt ab
+const PAUSE_WHEEL_MAX = 5; // ab mehr Songs werden zwei Walzen gebaut
+
+function updateWheelLook(scroller) {
+  const items = scroller.querySelectorAll(".wheel-item");
+  if (!items.length) return;
+  const center = scroller.scrollTop + scroller.clientHeight / 2;
+  items.forEach((item) => {
+    const itemCenter = item.offsetTop + item.offsetHeight / 2;
+    const dist = (itemCenter - center) / item.offsetHeight; // 0 = Mitte
+    const abs = Math.min(Math.abs(dist), 2);
+    item.style.transform = `perspective(300px) rotateX(${(-dist * 38).toFixed(1)}deg) scale(${(1 - abs * 0.12).toFixed(3)})`;
+    item.style.opacity = Math.max(0.25, 1 - abs * 0.45).toFixed(2);
+    item.classList.toggle("is-center", abs < 0.5);
+  });
+}
+
+function buildPauseWheel(tracks, startIndex) {
+  const wheel = document.createElement("div");
+  wheel.className = "pause-wheel";
+  const scroller = document.createElement("div");
+  scroller.className = "wheel-scroll";
+  const band = document.createElement("div");
+  band.className = "wheel-band";
+  band.setAttribute("aria-hidden", "true");
+
+  const items = tracks.map((track, i) => {
+    const label = `Pause: ${track.display || `Pause ${track.number || startIndex + i + 1}`}`;
+    const item = document.createElement("button");
+    item.className = "wheel-item";
+    item.textContent = track.display || `Pause ${track.number || startIndex + i + 1}`;
+    item.title = label;
+    item.addEventListener("click", () => {
+      if (item.classList.contains("is-center")) {
+        playAudio(track.url, label);
+      } else {
+        scroller.scrollTo({ top: item.offsetTop - (scroller.clientHeight - item.offsetHeight) / 2, behavior: "smooth" });
+      }
+    });
+    scroller.appendChild(item);
+    return item;
+  });
+
+  wheel.append(scroller, band);
+
+  const layout = () => {
+    if (!items.length || !items[0].offsetHeight) return;
+    const pad = Math.max(0, (scroller.clientHeight - items[0].offsetHeight) / 2);
+    scroller.style.paddingTop = `${pad}px`;
+    scroller.style.paddingBottom = `${pad}px`;
+    updateWheelLook(scroller);
+  };
+  let frame = null;
+  scroller.addEventListener("scroll", () => {
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = null;
+      updateWheelLook(scroller);
+    });
+  });
+  if (window.ResizeObserver) new ResizeObserver(layout).observe(wheel);
+  setTimeout(layout, 0);
+  return wheel;
+}
+
 function renderPauseButtons() {
   const container = document.getElementById("pause-buttons");
   if (!container) return;
@@ -2147,16 +2212,14 @@ function renderPauseButtons() {
   if (!Array.isArray(specialTracks.pauses) || specialTracks.pauses.length === 0) return;
 
   const sorted = [...specialTracks.pauses].sort((a, b) => (a.number || 0) - (b.number || 0));
-  sorted.forEach((track, idx) => {
-    const base = track.display || `Pause ${track.number || idx + 1}`;
-    const label = `Pause: ${base}`;
-    const btn = document.createElement("button");
-    btn.className = "pause-button bg-[#2b3445] hover:bg-[#364156] rounded-xl text-base leading-tight px-2 py-2 w-full";
-    btn.textContent = label;
-    btn.addEventListener("click", () => {
-      playAudio(track.url, label);
-    });
-    container.appendChild(btn);
+  const groups = sorted.length > PAUSE_WHEEL_MAX
+    ? [sorted.slice(0, Math.ceil(sorted.length / 2)), sorted.slice(Math.ceil(sorted.length / 2))]
+    : [sorted];
+  container.style.gridTemplateColumns = `repeat(${groups.length}, minmax(0, 1fr))`;
+  let offset = 0;
+  groups.forEach((group) => {
+    container.appendChild(buildPauseWheel(group, offset));
+    offset += group.length;
   });
 }
 

@@ -930,3 +930,63 @@ body.h-screen {
   align-items: center;
   gap: 0.4rem;
 }
+
+/* Pausen-Walzen */
+.pause-wheel {
+  position: relative;
+  min-height: 6.5rem;
+  border-radius: 0.75rem;
+  background: #1f2633;
+  overflow: hidden;
+}
+
+.wheel-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.wheel-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.wheel-item {
+  display: block;
+  width: 100%;
+  height: 2.2rem;
+  padding: 0 0.6rem;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  background: transparent;
+  color: #e5e7eb;
+  font-size: 0.95rem;
+  line-height: 2.2rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  will-change: transform;
+}
+
+.wheel-item.is-center {
+  color: #fff;
+  font-weight: 600;
+}
+
+.wheel-band {
+  position: absolute;
+  left: 0.3rem;
+  right: 0.3rem;
+  top: 50%;
+  height: 2.2rem;
+  transform: translateY(-50%);
+  border: 1px solid #4b5a75;
+  border-radius: 0.55rem;
+  background: rgba(99, 120, 160, 0.16);
+  pointer-events: none;
+}
