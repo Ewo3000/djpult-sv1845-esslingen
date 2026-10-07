@@ -2,11 +2,36 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "4.12";
+const APP_VERSION = "4.17";
 const APP_BUILD = "2026-10-07";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "4.17",
+    date: "2026-10-07",
+    changes: ["Timeout, Walk-On und Pausen-Songs zeigen jetzt auch Kurve und Drop-Anzeige (Song-Analyse einmal neu ausführen)."],
+  },
+  {
+    version: "4.16",
+    date: "2026-10-07",
+    changes: ["Der blaue Button heißt immer „Walk-On“, nicht mehr wie der Song."],
+  },
+  {
+    version: "4.15",
+    date: "2026-10-07",
+    changes: ["Pausen-Walzen drehen endlos: nach dem letzten Song kommt wieder der erste."],
+  },
+  {
+    version: "4.14",
+    date: "2026-10-07",
+    changes: ["Pausen: bis 4 Songs normale Knöpfe, ab 5 Songs immer zwei Walzen."],
+  },
+  {
+    version: "4.13",
+    date: "2026-10-07",
+    changes: ["Pausen-Songs als drehbare Walzen: wischen zum Auswählen, Tippen auf den mittleren Eintrag spielt ab (ab 6 Songs zwei Walzen)."],
+  },
   {
     version: "4.12",
     date: "2026-10-07",

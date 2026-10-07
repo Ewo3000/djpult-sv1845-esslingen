@@ -71,6 +71,15 @@ function cleanName(filename) {
     .trim();
 }
 
+// Kennung fuer Spezial-Songs (Timeout, Walk-On, Pausen) in waveforms.json
+function specialId(fileName) {
+  return "special_music/" + nfc(fileName);
+}
+
+function getSpecialTracks() {
+  return [specialTracks.timeout, specialTracks.walkon, ...specialTracks.pauses].filter(Boolean);
+}
+
 function revokeAllSongUrls() {
   const urls = [];
   Object.values(categories).forEach((cat) => cat.items.forEach((song) => urls.push(song.url)));
@@ -137,6 +146,8 @@ function handleFiles(fileList) {
         const match = upper.match(/_PAUSE(\d+)/);
         const number = match ? parseInt(match[1], 10) : specialTracks.pauses.length + 1;
         specialTracks.pauses.push({
+          id: specialId(file.name),
+          size: file.size,
           name: file.name,
           display: cleanName(file.name),
           number,
@@ -144,6 +155,8 @@ function handleFiles(fileList) {
         });
       } else if (key) {
         specialTracks[key] = {
+          id: specialId(file.name),
+          size: file.size,
           name: file.name,
           display: cleanName(file.name),
           url: URL.createObjectURL(file),
@@ -1597,6 +1610,10 @@ function applyWaveforms() {
     song.wave = wave && wave.size === song.size ? wave : null;
     if (!song.wave) names.push(song.display);
   });
+  getSpecialTracks().forEach((track) => {
+    const wave = waveforms[track.id];
+    track.wave = wave && wave.size === track.size ? wave : null;
+  });
   return { total: songs.length, missing: names.length, names };
 }
 
@@ -1613,7 +1630,7 @@ function announceWaveforms(hasFile, total, missing, names = []) {
 
 function lookupWave(songId) {
   if (!songId) return null;
-  const song = getAllSongs().find((item) => item.id === songId);
+  const song = getAllSongs().find((item) => item.id === songId) || getSpecialTracks().find((track) => track.id === songId);
   return song && song.wave ? { ...song.wave, drops: effectiveDrops(songId, song.wave) } : null;
 }
 
@@ -1852,14 +1869,14 @@ function setVolume(value) {
 function updateSpecialButtons() {
   const map = [
     { id: "btn-timeout", key: "timeout", fallback: "Timeout", prefix: "" },
-    { id: "btn-walkon", key: "walkon", fallback: "Walk-On", prefix: "" },
+    { id: "btn-walkon", key: "walkon", fallback: "Walk-On", prefix: "", fixed: true }, // Beschriftung bleibt immer "Walk-On"
   ];
 
-  map.forEach(({ id, key, fallback, prefix }) => {
+  map.forEach(({ id, key, fallback, prefix, fixed }) => {
     const btn = document.getElementById(id);
     if (!btn) return;
     const track = specialTracks[key];
-    if (track && track.display) {
+    if (!fixed && track && track.display) {
       btn.textContent = prefix ? `${prefix}${track.display}` : track.display;
     } else {
       btn.textContent = fallback;
@@ -2015,7 +2032,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => {
       const track = specialTracks[key];
       if (track && track.url) {
-        playAudio(track.url, track.display || label);
+        playAudio(track.url, track.display || label, null, track.id);
       } else {
         alert(`Kein ${label}-Track geladen.`);
       }
@@ -2139,6 +2156,104 @@ function toggleHeaderVisibility() {
   document.body.classList.toggle("header-collapsed", hidden);
 }
 
+// Pausen-Songs als drehbare Walzen: wischen waehlt, Tippen auf den mittleren Eintrag spielt ab
+const PAUSE_BUTTONS_MAX = 4; // bis zu so vielen Songs bleiben normale Knoepfe, darueber gibt es zwei Walzen
+
+function updateWheelLook(scroller) {
+  const items = scroller.querySelectorAll(".wheel-item");
+  if (!items.length) return;
+  const center = scroller.scrollTop + scroller.clientHeight / 2;
+  items.forEach((item) => {
+    const itemCenter = item.offsetTop + item.offsetHeight / 2;
+    const dist = (itemCenter - center) / item.offsetHeight; // 0 = Mitte
+    const abs = Math.min(Math.abs(dist), 2);
+    item.style.transform = `perspective(300px) rotateX(${(-dist * 38).toFixed(1)}deg) scale(${(1 - abs * 0.12).toFixed(3)})`;
+    item.style.opacity = Math.max(0.25, 1 - abs * 0.45).toFixed(2);
+    item.classList.toggle("is-center", abs < 0.5);
+  });
+}
+
+const WHEEL_COPIES = 9; // Liste wird mehrfach hintereinander gebaut, so wirkt die Walze endlos
+
+function buildPauseWheel(tracks, startIndex) {
+  const wheel = document.createElement("div");
+  wheel.className = "pause-wheel";
+  const scroller = document.createElement("div");
+  scroller.className = "wheel-scroll";
+  const band = document.createElement("div");
+  band.className = "wheel-band";
+  band.setAttribute("aria-hidden", "true");
+
+  const count = tracks.length;
+  const items = [];
+  for (let copy = 0; copy < WHEEL_COPIES; copy += 1) {
+    tracks.forEach((track, i) => {
+      const name = track.display || `Pause ${track.number || startIndex + i + 1}`;
+      const label = `Pause: ${name}`;
+      const item = document.createElement("button");
+      item.className = "wheel-item";
+      item.textContent = name;
+      item.title = label;
+      item.addEventListener("click", () => {
+        if (item.classList.contains("is-center")) {
+          playAudio(track.url, label, null, track.id);
+        } else {
+          scroller.scrollTo({ top: centerTop(item), behavior: "smooth" });
+        }
+      });
+      scroller.appendChild(item);
+      items.push(item);
+    });
+  }
+
+  wheel.append(scroller, band);
+
+  const centerTop = (item) => item.offsetTop - (scroller.clientHeight - item.offsetHeight) / 2;
+  const copyHeight = () => (count ? items[count].offsetTop - items[0].offsetTop : 0);
+
+  // Springt unmerklich in die mittlere Kopie zurueck (gleicher Inhalt, daher kein sichtbarer Sprung)
+  const recenter = (onlyIfNearEdge) => {
+    const h = copyHeight();
+    if (!h) return;
+    const base = Math.floor((scroller.scrollTop - centerTop(items[0])) / h + 1e-6);
+    const mid = Math.floor(WHEEL_COPIES / 2);
+    if (base === mid) return;
+    if (onlyIfNearEdge && base >= 1 && base <= WHEEL_COPIES - 3) return;
+    scroller.scrollTop -= (base - mid) * h;
+  };
+
+  let placed = false;
+  const layout = () => {
+    if (!items.length || !items[0].offsetHeight) return;
+    const pad = Math.max(0, (scroller.clientHeight - items[0].offsetHeight) / 2);
+    scroller.style.paddingTop = `${pad}px`;
+    scroller.style.paddingBottom = `${pad}px`;
+    if (!placed) {
+      placed = true;
+      scroller.style.scrollSnapType = "none";
+      scroller.scrollTop = centerTop(items[Math.floor(WHEEL_COPIES / 2) * count]);
+      requestAnimationFrame(() => (scroller.style.scrollSnapType = ""));
+    }
+    updateWheelLook(scroller);
+  };
+  let frame = null;
+  let idle = null;
+  scroller.addEventListener("scroll", () => {
+    if (!frame) {
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        updateWheelLook(scroller);
+      });
+    }
+    recenter(true);
+    clearTimeout(idle);
+    idle = setTimeout(() => recenter(false), 120);
+  });
+  if (window.ResizeObserver) new ResizeObserver(layout).observe(wheel);
+  setTimeout(layout, 0);
+  return wheel;
+}
+
 function renderPauseButtons() {
   const container = document.getElementById("pause-buttons");
   if (!container) return;
@@ -2147,17 +2262,24 @@ function renderPauseButtons() {
   if (!Array.isArray(specialTracks.pauses) || specialTracks.pauses.length === 0) return;
 
   const sorted = [...specialTracks.pauses].sort((a, b) => (a.number || 0) - (b.number || 0));
-  sorted.forEach((track, idx) => {
-    const base = track.display || `Pause ${track.number || idx + 1}`;
-    const label = `Pause: ${base}`;
-    const btn = document.createElement("button");
-    btn.className = "pause-button bg-[#2b3445] hover:bg-[#364156] rounded-xl text-base leading-tight px-2 py-2 w-full";
-    btn.textContent = label;
-    btn.addEventListener("click", () => {
-      playAudio(track.url, label);
+
+  if (sorted.length <= PAUSE_BUTTONS_MAX) {
+    container.style.gridTemplateColumns = "";
+    sorted.forEach((track, idx) => {
+      const label = `Pause: ${track.display || `Pause ${track.number || idx + 1}`}`;
+      const btn = document.createElement("button");
+      btn.className = "pause-button bg-[#2b3445] hover:bg-[#364156] rounded-xl text-base leading-tight px-2 py-2 w-full";
+      btn.textContent = label;
+      btn.addEventListener("click", () => playAudio(track.url, label, null, track.id));
+      container.appendChild(btn);
     });
-    container.appendChild(btn);
-  });
+    return;
+  }
+
+  const half = Math.ceil(sorted.length / 2);
+  container.style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
+  container.appendChild(buildPauseWheel(sorted.slice(0, half), 0));
+  container.appendChild(buildPauseWheel(sorted.slice(half), half));
 }
 
 function initCategoryScrollSync() {
@@ -2703,11 +2825,11 @@ function findSongById(categoryKey, songId) {
 function handleSpecialFromRemote(payload) {
   if (!payload || !payload.type) return;
   if (payload.type === "timeout" && specialTracks.timeout) {
-    playAudio(specialTracks.timeout.url, specialTracks.timeout.display || "Timeout");
+    playAudio(specialTracks.timeout.url, specialTracks.timeout.display || "Timeout", null, specialTracks.timeout.id);
     return;
   }
   if (payload.type === "walkon" && specialTracks.walkon) {
-    playAudio(specialTracks.walkon.url, specialTracks.walkon.display || "Walk-On");
+    playAudio(specialTracks.walkon.url, specialTracks.walkon.display || "Walk-On", null, specialTracks.walkon.id);
     return;
   }
   if (payload.type === "pause") {
@@ -2717,7 +2839,7 @@ function handleSpecialFromRemote(payload) {
     );
     if (target) {
       const label = target.display || `Pause ${target.number || ""}`;
-      playAudio(target.url, label);
+      playAudio(target.url, label, null, target.id);
     }
   }
 }

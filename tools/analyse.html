@@ -39,7 +39,7 @@
 
   <h2>So geht's</h2>
   <ol>
-    <li>Unten auf <strong>Ordner wählen und starten</strong> klicken und den Ordner <code>Diesen Ordner Laden</code> wählen (darin liegen <code>music</code> und <code>special_music</code>). Der Browser fragt, ob er den Ordner ändern darf: erlauben.</li>
+    <li>Unten auf <strong>Ordner wählen und starten</strong> klicken und den Ordner <code>Diesen Ordner Laden</code> wählen (darin liegen <code>music</code> und <code>special_music</code>, beide werden analysiert). Der Browser fragt, ob er den Ordner ändern darf: erlauben.</li>
     <li>Die Analyse läuft. Es werden nur <strong>neue oder geänderte</strong> Songs berechnet, schon vorhandene bleiben unverändert.</li>
     <li>Am Ende liegt die Datei <code>waveforms.json</code> im gewählten Ordner. iCloud überträgt sie zum iPad. Dort beim nächsten „Songs laden“ den Ordner wie gewohnt wählen.</li>
   </ol>
@@ -62,6 +62,7 @@
 (function () {
   const AUDIO = /\.(mp3|flac|wav|ogg)$/i;
   const FORMAT_VERSION = 1;
+  const SPECIAL_PREFIX = "special_music/"; // Kennung fuer Songs aus special_music in waveforms.json
   const ANALYSIS_VERSION = 2; // 2 = mit Pegel (level/integrated); aeltere Eintraege werden neu berechnet
   const $ = (id) => document.getElementById(id);
 
@@ -180,6 +181,16 @@
       if (handle.kind === "file" && AUDIO.test(name)) entries.push({ name, getFile: () => handle.getFile() });
     }
     entries.sort((a, b) => a.name.localeCompare(b.name, "de"));
+    // Spezial-Songs (Timeout, Walk-On, Pausen) werden mit dem Praefix "special_music/" gefuehrt
+    try {
+      const specialDir = await root.getDirectoryHandle("special_music");
+      const special = [];
+      for await (const [name, handle] of specialDir.entries()) {
+        if (handle.kind === "file" && AUDIO.test(name)) special.push({ name: SPECIAL_PREFIX + name, getFile: () => handle.getFile() });
+      }
+      special.sort((a, b) => a.name.localeCompare(b.name, "de"));
+      entries.push(...special);
+    } catch (err) { /* kein Ordner special_music */ }
     let existing = {};
     try {
       const file = await (await root.getFileHandle("waveforms.json")).getFile();
@@ -206,10 +217,12 @@
     input.multiple = true;
     input.addEventListener("change", async () => {
       const files = Array.from(input.files || []);
-      const entries = files
-        .filter((f) => AUDIO.test(f.name) && /(^|[\\/])music[\\/]/i.test(f.webkitRelativePath || ""))
-        .map((f) => ({ name: f.name, getFile: async () => f }))
-        .sort((a, b) => a.name.localeCompare(b.name, "de"));
+      const inFolder = (f, folder) => AUDIO.test(f.name) && new RegExp("(^|[\\/])" + folder + "[\\/]", "i").test(f.webkitRelativePath || "");
+      const byName = (a, b) => a.name.localeCompare(b.name, "de");
+      const entries = [
+        ...files.filter((f) => inFolder(f, "music")).map((f) => ({ name: f.name, getFile: async () => f })).sort(byName),
+        ...files.filter((f) => inFolder(f, "special_music")).map((f) => ({ name: SPECIAL_PREFIX + f.name, getFile: async () => f })).sort(byName),
+      ];
       if (!entries.length) {
         showResult("err", "Im gewählten Ordner wurden keine Songs im Unterordner <code>music</code> gefunden.");
         return;

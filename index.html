@@ -101,7 +101,8 @@
             </ul>
             <h3>Untere Leiste</h3>
             <ul>
-              <li><strong>Timeout, Walk-On, Pause-Buttons:</strong> spielen die Songs aus <code>special_music</code>.</li>
+              <li><strong>Timeout, Walk-On:</strong> spielen die Songs aus <code>special_music</code>.</li>
+              <li><strong>Pausen-Walzen:</strong> Mit dem Finger hoch und runter wischen, der mittlere Eintrag ist gewählt. Ein Tippen auf den mittleren Eintrag spielt ab, ein Tippen auf einen anderen dreht die Walze nur dorthin. Bis zu 4 Pausen-Songs bleiben normale Knöpfe, ab 5 gibt es zwei Walzen, die sich endlos drehen (nach dem letzten Song kommt wieder der erste).</li>
               <li><strong>Eigene Punkte / Gegnerpunkte:</strong> zufälliger Song aus den Eigene-Punkte-Spalten bzw. der Gegner-Spalte.</li>
               <li><strong>★ Top-Stimmung / 👏 Mitklatschen:</strong> zufälliger Song aus der jeweiligen Markierung.</li>
               <li><strong>So wählt der Zufall:</strong> Die am seltensten gespielten Songs kommen klar bevorzugt dran. Die <strong>letzten 4 gespielten Songs</strong> werden übersprungen, egal über welchen Button oder von Hand gespielt. So kommt derselbe Song nie direkt zweimal hintereinander, auch nicht bei Top-Stimmung und Mitklatschen.</li>
@@ -124,12 +125,12 @@
             <h3>Ordner <code>special_music</code></h3>
             <ul>
               <li><code>_TIMEOUT</code> → Button Timeout, <code>_WALKON</code> → Button Walk-On</li>
-              <li><code>_PAUSE1</code>, <code>_PAUSE2</code> … → je ein Pause-Button, automatisch angelegt</li>
+              <li><code>_PAUSE1</code>, <code>_PAUSE2</code> … → je ein Eintrag in den Pausen-Walzen, automatisch angelegt</li>
             </ul>
             <h3>Kurven und Drops (Song-Analyse)</h3>
             <ul>
               <li>Die Kurven und die Drop-Zeiten stehen in der Datei <code>waveforms.json</code> im Ordner <code>Diesen Ordner Laden</code>. Sie wird beim Laden der Songs automatisch eingelesen.</li>
-              <li><strong>Neue oder ausgetauschte Songs?</strong> Dann zeigt die App beim Laden einen Hinweis „… Songs haben noch keine Kurve“. Am PC (Chrome oder Edge) <a href="tools/analyse.html" target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:underline">tools/analyse.html</a> öffnen, den Ordner <code>Diesen Ordner Laden</code> wählen und die Analyse laufen lassen. Es werden nur neue oder geänderte Songs berechnet, die Datei wird direkt im Ordner gespeichert.</li>
+              <li><strong>Neue oder ausgetauschte Songs?</strong> Dann zeigt die App beim Laden einen Hinweis „… Songs haben noch keine Kurve“. Am PC (Chrome oder Edge) <a href="tools/analyse.html" target="_blank" rel="noopener" style="color:#93c5fd;text-decoration:underline">tools/analyse.html</a> öffnen, den Ordner <code>Diesen Ordner Laden</code> wählen und die Analyse laufen lassen. Es werden auch die Songs aus <code>special_music</code> (Timeout, Walk-On, Pausen) analysiert, sie zeigen dann ebenfalls Kurve und Drop-Anzeige. Es werden nur neue oder geänderte Songs berechnet, die Datei wird direkt im Ordner gespeichert.</li>
               <li>Songs ohne Kurve funktionieren ganz normal, sie zeigen nur den einfachen Fortschrittsbalken und keinen Countdown. Ein kleines <strong>≈</strong> am Song-Button zeigt dir, welche Songs noch keine Kurve haben.</li>
             </ul>
             <div class="info-tip">
