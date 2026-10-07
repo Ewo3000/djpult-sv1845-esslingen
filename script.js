@@ -71,6 +71,15 @@ function cleanName(filename) {
     .trim();
 }
 
+// Kennung fuer Spezial-Songs (Timeout, Walk-On, Pausen) in waveforms.json
+function specialId(fileName) {
+  return "special_music/" + nfc(fileName);
+}
+
+function getSpecialTracks() {
+  return [specialTracks.timeout, specialTracks.walkon, ...specialTracks.pauses].filter(Boolean);
+}
+
 function revokeAllSongUrls() {
   const urls = [];
   Object.values(categories).forEach((cat) => cat.items.forEach((song) => urls.push(song.url)));
@@ -137,6 +146,8 @@ function handleFiles(fileList) {
         const match = upper.match(/_PAUSE(\d+)/);
         const number = match ? parseInt(match[1], 10) : specialTracks.pauses.length + 1;
         specialTracks.pauses.push({
+          id: specialId(file.name),
+          size: file.size,
           name: file.name,
           display: cleanName(file.name),
           number,
@@ -144,6 +155,8 @@ function handleFiles(fileList) {
         });
       } else if (key) {
         specialTracks[key] = {
+          id: specialId(file.name),
+          size: file.size,
           name: file.name,
           display: cleanName(file.name),
           url: URL.createObjectURL(file),
@@ -1597,6 +1610,10 @@ function applyWaveforms() {
     song.wave = wave && wave.size === song.size ? wave : null;
     if (!song.wave) names.push(song.display);
   });
+  getSpecialTracks().forEach((track) => {
+    const wave = waveforms[track.id];
+    track.wave = wave && wave.size === track.size ? wave : null;
+  });
   return { total: songs.length, missing: names.length, names };
 }
 
@@ -1613,7 +1630,7 @@ function announceWaveforms(hasFile, total, missing, names = []) {
 
 function lookupWave(songId) {
   if (!songId) return null;
-  const song = getAllSongs().find((item) => item.id === songId);
+  const song = getAllSongs().find((item) => item.id === songId) || getSpecialTracks().find((track) => track.id === songId);
   return song && song.wave ? { ...song.wave, drops: effectiveDrops(songId, song.wave) } : null;
 }
 
@@ -2015,7 +2032,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => {
       const track = specialTracks[key];
       if (track && track.url) {
-        playAudio(track.url, track.display || label);
+        playAudio(track.url, track.display || label, null, track.id);
       } else {
         alert(`Kein ${label}-Track geladen.`);
       }
@@ -2179,7 +2196,7 @@ function buildPauseWheel(tracks, startIndex) {
       item.title = label;
       item.addEventListener("click", () => {
         if (item.classList.contains("is-center")) {
-          playAudio(track.url, label);
+          playAudio(track.url, label, null, track.id);
         } else {
           scroller.scrollTo({ top: centerTop(item), behavior: "smooth" });
         }
@@ -2253,7 +2270,7 @@ function renderPauseButtons() {
       const btn = document.createElement("button");
       btn.className = "pause-button bg-[#2b3445] hover:bg-[#364156] rounded-xl text-base leading-tight px-2 py-2 w-full";
       btn.textContent = label;
-      btn.addEventListener("click", () => playAudio(track.url, label));
+      btn.addEventListener("click", () => playAudio(track.url, label, null, track.id));
       container.appendChild(btn);
     });
     return;
@@ -2808,11 +2825,11 @@ function findSongById(categoryKey, songId) {
 function handleSpecialFromRemote(payload) {
   if (!payload || !payload.type) return;
   if (payload.type === "timeout" && specialTracks.timeout) {
-    playAudio(specialTracks.timeout.url, specialTracks.timeout.display || "Timeout");
+    playAudio(specialTracks.timeout.url, specialTracks.timeout.display || "Timeout", null, specialTracks.timeout.id);
     return;
   }
   if (payload.type === "walkon" && specialTracks.walkon) {
-    playAudio(specialTracks.walkon.url, specialTracks.walkon.display || "Walk-On");
+    playAudio(specialTracks.walkon.url, specialTracks.walkon.display || "Walk-On", null, specialTracks.walkon.id);
     return;
   }
   if (payload.type === "pause") {
@@ -2822,7 +2839,7 @@ function handleSpecialFromRemote(payload) {
     );
     if (target) {
       const label = target.display || `Pause ${target.number || ""}`;
-      playAudio(target.url, label);
+      playAudio(target.url, label, null, target.id);
     }
   }
 }
