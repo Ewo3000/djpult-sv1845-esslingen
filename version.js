@@ -2,11 +2,18 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "4.11";
-const APP_BUILD = "2026-10-06";
+const APP_VERSION = "4.12";
+const APP_BUILD = "2026-10-07";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "4.12",
+    date: "2026-10-07",
+    changes: [
+      "Zähler und Farbmarkierung vergleichen jetzt pro Gruppe: Eigene Punkte (Ass/Angriff, Block, Sonstiges 1–3), Gegner und Lustig getrennt.",
+    ],
+  },
   {
     version: "4.11",
     date: "2026-10-06",
