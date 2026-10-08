@@ -990,3 +990,16 @@ body.h-screen {
   background: rgba(99, 120, 160, 0.16);
   pointer-events: none;
 }
+
+/* Bereits gespielte Pausen-Songs */
+.is-played {
+  color: #6b7280 !important;
+  text-decoration: line-through;
+}
+
+.is-played::before {
+  content: "¹3 a0";
+  display: inline-block;
+  text-decoration: none;
+  color: #34d399;
+}
