@@ -31,7 +31,7 @@ const categories = {
   sonstiges: { title: "Sonstiges 1", color: "bg-green-600", baseHSL: [142, 71, 45], items: [] }, // Tailwind green-600
   noch_mehr: { title: "Sonstiges 2", color: "bg-green-600", baseHSL: [142, 71, 45], items: [] }, // Tailwind green-600
   noch_mehr2: { title: "Sonstiges 3", color: "bg-green-600", baseHSL: [142, 71, 45], items: [] }, // Tailwind green-600
-  spass: { title: "Lustig", color: "bg-purple-600", baseHSL: [271, 81, 56], items: [] }, // Tailwind purple-600
+  spass: { title: "Spaß & Extras", color: "bg-purple-600", baseHSL: [271, 81, 56], items: [] }, // Tailwind purple-600
 };
 
 const specialTracks = {
