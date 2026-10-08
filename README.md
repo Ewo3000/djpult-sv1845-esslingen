@@ -16,7 +16,7 @@ Ordner mit den Songs auswählen; Unterordner `special_music/` enthält die Spezi
 | `_HIT`, `_ACE` | Ass/Angriff |
 | `_BLOCK` | Block |
 | `_OPP` | Gegner |
-| `_FUN` | Lustig |
+| `_FUN` | Spaß & Extras |
 | ohne Suffix | verteilt auf die drei grünen Spalten |
 
 Spezial (`special_music/`): `_TIMEOUT`, `_WALKON`, `_PAUSE1`, `_PAUSE2`, ... Unterstützte Formate: mp3, flac, wav, ogg.
