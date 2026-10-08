@@ -2,7 +2,7 @@
 // Gespeichert wird nur ein Fingerabdruck des Passworts; die Freigabe gilt nur, solange die App offen ist.
 // Passwort aendern: neuen Hash berechnen (SHA-256 von "djpult|" + Passwort in Kleinbuchstaben) und hier eintragen.
 (function () {
-  const ACCESS_HASH = "e5796329975a27fdfb429e2d527675e2bcebe2e5135cb24126c3e8b8c6fa4798";
+  const ACCESS_HASH = "f717a47101db7e18a82b114d3fe0776d62a43298a127a54ea38d52a16f79b462";
   const STORE_KEY = "djpultAccess";
 
   const read = () => {
