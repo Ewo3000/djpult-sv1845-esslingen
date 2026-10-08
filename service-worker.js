@@ -7,6 +7,7 @@ const ASSETS = [
   "./index.html",
   "./remote.html",
   "./version.js",
+  "./access.js",
   "./script.js",
   "./remote.js",
   "./style.css",
