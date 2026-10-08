@@ -25,7 +25,7 @@
     '<div style="margin:auto;width:100%;max-width:23rem;text-align:center;display:flex;flex-direction:column;gap:0.8rem;">' +
     '<img src="static/images/thumbnail_logo.png" alt="" style="height:4.5rem;margin:0 auto;" />' +
     '<div><div style="font-size:1.5rem;font-weight:700;">DJ Pult</div>' +
-    '<div style="font-size:0.95rem;' + muted + 'margin-top:0.2rem;">Volleyball-DJ-Pult von SV Esslingen 1845</div>' +
+    '<div style="font-size:0.95rem;' + muted + 'margin-top:0.2rem;">Volleyball-DJ-Pult von SV 1845 Esslingen</div>' +
     '<div style="font-size:0.85rem;' + muted + '">von Thimo Ludwig</div></div>' +
     '<form id="access-form" style="display:flex;flex-direction:column;gap:0.6rem;margin-top:0.4rem;">' +
     '<div style="font-size:0.95rem;">Bitte Passwort eingeben</div>' +
@@ -38,7 +38,7 @@
     '<div style="font-weight:600;margin-bottom:0.3rem;">Kurz erklärt</div>' +
     '<ol style="margin:0;padding-left:1.2rem;list-style:decimal;' + muted + '">' +
     "<li>Passwort eingeben und auf „Öffnen“ tippen.</li>" +
-    "<li>Auf „Songs laden“ tippen und den Ordner mit der Musik wählen.</li>" +
+    "<li>Auf „Songs laden“ tippen und den Ordner „Diesen Ordner Laden“ wählen.</li>" +
     "<li>Song antippen zum Abspielen. Die ganze Anleitung steht unter „Info“.</li>" +
     "</ol></div>" +
     '<div style="font-size:0.85rem;' + muted + '">Bei Problemen wende dich an Thimo.</div>' +
