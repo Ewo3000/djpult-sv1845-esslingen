@@ -998,7 +998,7 @@ body.h-screen {
 }
 
 .is-played::before {
-  content: "¹3 a0";
+  content: "\2713\00a0";
   display: inline-block;
   text-decoration: none;
   color: #34d399;
