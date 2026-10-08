@@ -1003,3 +1003,14 @@ body.h-screen {
   text-decoration: none;
   color: #34d399;
 }
+
+/* Ueberschrift ueber den Pausen-Songs */
+.pause-title {
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #9ca3af;
+}

@@ -313,7 +313,10 @@
         Walk-On
       </button>
     </div>
-    <div id="pause-buttons" class="grid grid-cols-2 gap-3 w-full"></div>
+    <div class="pause-group flex flex-col w-full min-w-0">
+      <div class="pause-title">Pausensongs</div>
+      <div id="pause-buttons" class="grid grid-cols-2 gap-3 w-full flex-1"></div>
+    </div>
     <div class="grid grid-cols-1 gap-3 w-full">
       <button onclick="playRandomMarked('top')" class="bg-[#b45309] hover:bg-[#9a4608] rounded-xl px-2 py-2 shadow-md flex flex-col items-center justify-center leading-tight" title="Zufälliger Song aus Top-Stimmung">
         <span class="text-base font-semibold">&#9733; Top-Stimmung</span>
