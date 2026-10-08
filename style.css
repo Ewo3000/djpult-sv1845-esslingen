@@ -990,3 +990,27 @@ body.h-screen {
   background: rgba(99, 120, 160, 0.16);
   pointer-events: none;
 }
+
+/* Bereits gespielte Pausen-Songs */
+.is-played {
+  color: #6b7280 !important;
+  text-decoration: line-through;
+}
+
+.is-played::before {
+  content: "\2713\00a0";
+  display: inline-block;
+  text-decoration: none;
+  color: #34d399;
+}
+
+/* Ueberschrift ueber den Pausen-Songs */
+.pause-title {
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #9ca3af;
+}

@@ -2042,6 +2042,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindSpecial(btnTimeout, "timeout", "Timeout");
   bindSpecial(btnWalkon, "walkon", "Walk-On");
 
+  loadPausePlayed();
   updateSpecialButtons();
   loadPlayCounts();
 });
@@ -2129,6 +2130,7 @@ function initZoomControls() {
 }
 
 function resetPlayCounts() {
+  resetPausePlayed();
   songPlayCounts = {};
   savePlayCounts();
   renderCategories();
@@ -2173,6 +2175,55 @@ function updateWheelLook(scroller) {
   });
 }
 
+// Bereits gespielte Pausen-Songs (bleibt nach App-Neustart erhalten, Reset-Knopf setzt zurueck)
+let pausePlayed = new Set();
+
+function loadPausePlayed() {
+  try {
+    const data = JSON.parse(localStorage.getItem("pausePlayed") || "[]");
+    pausePlayed = new Set(Array.isArray(data) ? data.map(nfc) : []);
+  } catch (err) {
+    pausePlayed = new Set();
+  }
+}
+
+function savePausePlayed() {
+  try {
+    localStorage.setItem("pausePlayed", JSON.stringify([...pausePlayed]));
+  } catch (err) {
+    console.warn("Konnte Pausen-Markierung nicht speichern:", err);
+  }
+}
+
+function refreshPauseMarks() {
+  document.querySelectorAll("[data-pause-id]").forEach((el) => {
+    el.classList.toggle("is-played", pausePlayed.has(el.dataset.pauseId));
+  });
+}
+
+function resetPausePlayed() {
+  pausePlayed = new Set();
+  savePausePlayed();
+  refreshPauseMarks();
+}
+
+// Spielt einen Pausen-Song, markiert ihn als gespielt und dreht die Walze zum naechsten ungespielten
+function playPauseTrack(track, label) {
+  playAudio(track.url, label, null, track.id);
+  if (!track.id) return;
+  pausePlayed.add(track.id);
+  const all = (specialTracks.pauses || []).map((item) => item.id);
+  if (all.length && all.every((id) => pausePlayed.has(id))) {
+    // alle einmal gespielt: neue Runde, der gerade gespielte bleibt markiert
+    pausePlayed = new Set([track.id]);
+  }
+  savePausePlayed();
+  refreshPauseMarks();
+  document.querySelectorAll(".pause-wheel").forEach((wheel) => {
+    if (wheel.advanceFrom) wheel.advanceFrom(track.id);
+  });
+}
+
 const WHEEL_COPIES = 9; // Liste wird mehrfach hintereinander gebaut, so wirkt die Walze endlos
 
 function buildPauseWheel(tracks, startIndex) {
@@ -2194,9 +2245,11 @@ function buildPauseWheel(tracks, startIndex) {
       item.className = "wheel-item";
       item.textContent = name;
       item.title = label;
+      item.dataset.pauseId = track.id || "";
+      item.classList.toggle("is-played", pausePlayed.has(track.id));
       item.addEventListener("click", () => {
         if (item.classList.contains("is-center")) {
-          playAudio(track.url, label, null, track.id);
+          playPauseTrack(track, label);
         } else {
           scroller.scrollTo({ top: centerTop(item), behavior: "smooth" });
         }
@@ -2207,6 +2260,27 @@ function buildPauseWheel(tracks, startIndex) {
   }
 
   wheel.append(scroller, band);
+
+  // Nach dem Abspielen zum naechsten noch nicht gespielten Song dieser Walze drehen
+  wheel.advanceFrom = (playedId) => {
+    const from = tracks.findIndex((track) => track.id === playedId);
+    if (from === -1 || count < 2) return;
+    let target = (from + 1) % count;
+    for (let k = 1; k < count; k += 1) {
+      const j = (from + k) % count;
+      if (!pausePlayed.has(tracks[j].id)) {
+        target = j;
+        break;
+      }
+    }
+    let best = null;
+    items.forEach((item, index) => {
+      if (index % count !== target) return;
+      const distance = Math.abs(centerTop(item) - scroller.scrollTop);
+      if (!best || distance < best.distance) best = { item, distance };
+    });
+    if (best) setTimeout(() => scroller.scrollTo({ top: centerTop(best.item), behavior: "smooth" }), 250);
+  };
 
   const centerTop = (item) => item.offsetTop - (scroller.clientHeight - item.offsetHeight) / 2;
   const copyHeight = () => (count ? items[count].offsetTop - items[0].offsetTop : 0);
@@ -2231,7 +2305,8 @@ function buildPauseWheel(tracks, startIndex) {
     if (!placed) {
       placed = true;
       scroller.style.scrollSnapType = "none";
-      scroller.scrollTop = centerTop(items[Math.floor(WHEEL_COPIES / 2) * count]);
+      const firstFree = Math.max(0, tracks.findIndex((track) => !pausePlayed.has(track.id)));
+      scroller.scrollTop = centerTop(items[Math.floor(WHEEL_COPIES / 2) * count + firstFree]);
       requestAnimationFrame(() => (scroller.style.scrollSnapType = ""));
     }
     updateWheelLook(scroller);
@@ -2270,7 +2345,9 @@ function renderPauseButtons() {
       const btn = document.createElement("button");
       btn.className = "pause-button bg-[#2b3445] hover:bg-[#364156] rounded-xl text-base leading-tight px-2 py-2 w-full";
       btn.textContent = label;
-      btn.addEventListener("click", () => playAudio(track.url, label, null, track.id));
+      btn.dataset.pauseId = track.id || "";
+      btn.classList.toggle("is-played", pausePlayed.has(track.id));
+      btn.addEventListener("click", () => playPauseTrack(track, label));
       container.appendChild(btn);
     });
     return;
@@ -2839,7 +2916,7 @@ function handleSpecialFromRemote(payload) {
     );
     if (target) {
       const label = target.display || `Pause ${target.number || ""}`;
-      playAudio(target.url, label, null, target.id);
+      playPauseTrack(target, label);
     }
   }
 }

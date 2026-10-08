@@ -2,11 +2,26 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "4.17";
-const APP_BUILD = "2026-10-07";
+const APP_VERSION = "4.20";
+const APP_BUILD = "2026-10-08";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "4.20",
+    date: "2026-10-08",
+    changes: ["Überschrift „Pausensongs“ über den Pausen-Walzen."],
+  },
+  {
+    version: "4.19",
+    date: "2026-10-08",
+    changes: ["Fehler behoben: Vor gespielten Pausen-Songs standen falsche Zeichen statt des Häkchens."],
+  },
+  {
+    version: "4.18",
+    date: "2026-10-08",
+    changes: ["Pausen-Songs: gespielte sind mit ✓ markiert und durchgestrichen, die Walze dreht zum nächsten ungespielten. Reset setzt die Markierung zurück."],
+  },
   {
     version: "4.17",
     date: "2026-10-07",
