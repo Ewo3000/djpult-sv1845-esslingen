@@ -18,18 +18,32 @@
   const overlay = document.createElement("div");
   overlay.id = "access-gate";
   overlay.style.cssText =
-    "position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;" +
-    "background:#111827;color:#f9fafb;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:1rem;";
+    "position:fixed;inset:0;z-index:2147483647;overflow:auto;display:flex;background:#111827;color:#f9fafb;" +
+    "font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:1rem;";
+  const muted = "color:#9ca3af;";
   overlay.innerHTML =
-    '<form id="access-form" style="width:100%;max-width:20rem;text-align:center;display:flex;flex-direction:column;gap:0.8rem;">' +
+    '<div style="margin:auto;width:100%;max-width:23rem;text-align:center;display:flex;flex-direction:column;gap:0.8rem;">' +
     '<img src="static/images/thumbnail_logo.png" alt="" style="height:4.5rem;margin:0 auto;" />' +
-    '<div style="font-size:1.4rem;font-weight:700;">DJ Pult</div>' +
-    '<div style="font-size:0.95rem;color:#9ca3af;">Bitte Passwort eingeben</div>' +
+    '<div><div style="font-size:1.5rem;font-weight:700;">DJ Pult</div>' +
+    '<div style="font-size:0.95rem;' + muted + 'margin-top:0.2rem;">Volleyball-DJ-Pult von SV Esslingen 1845</div>' +
+    '<div style="font-size:0.85rem;' + muted + '">von Thimo Ludwig</div></div>' +
+    '<form id="access-form" style="display:flex;flex-direction:column;gap:0.6rem;margin-top:0.4rem;">' +
+    '<div style="font-size:0.95rem;">Bitte Passwort eingeben</div>' +
     '<input id="access-input" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" ' +
     'style="font-size:1.1rem;padding:0.7rem 0.8rem;border-radius:0.6rem;border:1px solid #4b5563;background:#1f2937;color:#fff;text-align:center;" />' +
     '<div id="access-error" style="min-height:1.2rem;font-size:0.9rem;color:#f87171;"></div>' +
     '<button type="submit" style="font-size:1.1rem;font-weight:600;padding:0.7rem;border-radius:0.6rem;border:0;background:#2563eb;color:#fff;">Öffnen</button>' +
-    "</form>";
+    "</form>" +
+    '<div style="text-align:left;font-size:0.85rem;line-height:1.45;background:#1f2937;border-radius:0.6rem;padding:0.7rem 0.9rem;">' +
+    '<div style="font-weight:600;margin-bottom:0.3rem;">Kurz erklärt</div>' +
+    '<ol style="margin:0;padding-left:1.2rem;list-style:decimal;' + muted + '">' +
+    "<li>Passwort eingeben und auf „Öffnen“ tippen.</li>" +
+    "<li>Auf „Songs laden“ tippen und den Ordner mit der Musik wählen.</li>" +
+    "<li>Song antippen zum Abspielen. Die ganze Anleitung steht unter „Info“.</li>" +
+    "</ol></div>" +
+    '<div style="font-size:0.85rem;' + muted + '">Bei Problemen wende dich an Thimo.</div>' +
+    '<div id="access-version" style="font-size:0.75rem;color:#6b7280;"></div>' +
+    "</div>";
   document.documentElement.appendChild(overlay);
 
   const hash = async (text) => {
@@ -58,4 +72,9 @@
     }
   });
   setTimeout(() => input.focus(), 50);
+  // Version steht erst nach dem Laden von version.js zur Verfuegung
+  document.addEventListener("DOMContentLoaded", () => {
+    const el = overlay.querySelector("#access-version");
+    if (el && typeof APP_VERSION !== "undefined") el.textContent = "Version " + APP_VERSION;
+  });
 })();
