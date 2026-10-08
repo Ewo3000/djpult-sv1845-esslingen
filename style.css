@@ -1014,3 +1014,15 @@ body.h-screen {
   text-align: center;
   color: #9ca3af;
 }
+
+/* Sonderlied: gross, goldener Rahmen, ganz oben in der Spalte */
+.song-button.song-special {
+  padding-top: 1.1rem;
+  padding-bottom: 1.1rem;
+  font-size: 1.05em;
+  font-weight: 700;
+  color: #fff7d6;
+  background: linear-gradient(135deg, #5a4210, #2a2008);
+  border: 2px solid #f5c542;
+  box-shadow: 0 0 10px rgba(245, 197, 66, 0.35), 0 2px 4px rgba(0, 0, 0, 0.4);
+}

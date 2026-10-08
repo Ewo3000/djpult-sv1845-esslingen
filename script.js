@@ -264,6 +264,8 @@ function ensureAudioGraph() {
 const MARK_GROUPS = {
   top: { label: "Top-Stimmung", short: "Top", symbol: "★" },
   clap: { label: "Mitklatschen", short: "Klatschen", symbol: "👏" },
+  // Sonderlied: nie per Zufall, steht ganz oben in seiner Spalte, nur von Hand zu spielen
+  special: { label: "Sonderlied", short: "Sonder", symbol: "\uD83C\uDFC6" },
   // Nur zum Merken (kein Zufall-Button):
   slow: { label: "Langer Aufbau", short: "Aufbau", symbol: "\u23F3" }, // Drop kommt spaet
   quiet: { label: "Zu leise", short: "Leise", symbol: "\uD83D\uDD08" }, // Lautstaerke nacharbeiten
@@ -946,6 +948,10 @@ function toggleMark(group, id) {
   pendingMarkChanges += 1;
   saveMarks();
   updateSongMarks(id);
+  if (group === "special") {
+    const song = getAllSongs().find((item) => item.id === id);
+    if (song) renderSingleCategory(song.category); // Sonderlied nach oben bzw. zurueck
+  }
   updateMarksStatus();
   renderMarksPanel();
   noteUnsavedChange();
@@ -1233,6 +1239,7 @@ async function exportMarks() {
 function afterMarksChangedBulk() {
   saveMarks();
   refreshAllSongMarks();
+  renderCategories();
   updateMarksStatus();
   renderMarksPanel();
 }
@@ -1368,6 +1375,11 @@ function countGroupOf(key) {
   return COUNT_GROUPS.find((group) => group.includes(key)) || [key];
 }
 
+// Sonderlieder stehen ganz oben in ihrer Spalte
+function orderedItems(cat) {
+  return [...cat.items.filter((song) => marks.special.has(song.id)), ...cat.items.filter((song) => !marks.special.has(song.id))];
+}
+
 function getCountRange(cat) {
   let min = Infinity;
   let max = -Infinity;
@@ -1376,6 +1388,7 @@ function getCountRange(cat) {
     const groupCat = categories[groupKey];
     if (!groupCat) return;
     groupCat.items.forEach((song) => {
+      if (marks.special.has(song.id)) return; // Sonderlieder verzerren die Heatmap nicht
       const count = songPlayCounts[song.id] || 0;
       if (count < min) min = count;
       if (count > max) max = count;
@@ -1403,7 +1416,9 @@ function buildSongButton(song, cat, range) {
   btn.className = "song-button";
 
   const count = songPlayCounts[song.id] || 0;
-  if (cat.baseHSL) {
+  const isSpecial = marks.special.has(song.id);
+  if (isSpecial) btn.classList.add("song-special");
+  if (cat.baseHSL && !isSpecial) {
     // Heatmap: selten gespielte Songs leuchten kraeftig, oft gespielte werden blasser.
     // Songs mit dem niedrigsten Zaehler der Spalte bekommen zusaetzlich einen hellen Rahmen.
     const spread = range.max - range.min;
@@ -1515,7 +1530,7 @@ function renderCategories() {
     grid.appendChild(col);
 
     const range = getCountRange(cat);
-    cat.items.forEach((song) => {
+    orderedItems(cat).forEach((song) => {
       if (matchesSearch(song)) totalMatches += 1;
       container.appendChild(buildSongButton(song, cat, range));
     });
@@ -2095,7 +2110,7 @@ function renderSingleCategory(key) {
     if (!cat || !container) return;
     container.innerHTML = "";
     const range = getCountRange(cat);
-    cat.items.forEach((song) => {
+    orderedItems(cat).forEach((song) => {
       container.appendChild(buildSongButton(song, cat, range));
     });
   });
@@ -2596,6 +2611,7 @@ function rememberPlayed(id) {
 //    gleich oft wie der seltenste = Gewicht 1, einmal oefter = 1/16, zweimal = 1/81 usw.
 //    Dadurch bleibt die Bevorzugung auch dann scharf, wenn alle Songs schon oft liefen.
 function pickWeightedSong(songs) {
+  songs = songs.filter((song) => !marks.special.has(song.id)); // Sonderlieder nie per Zufall
   if (!songs.length) return null;
   const skip = Math.min(RECENT_SONG_LIMIT, songs.length - 1);
   const recent = skip > 0 ? recentSongIds.slice(-skip) : [];
