@@ -2,11 +2,26 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "4.23";
+const APP_VERSION = "4.26";
 const APP_BUILD = "2026-10-08";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "4.26",
+    date: "2026-10-08",
+    changes: ["Passwort korrigiert (Zahlendreher)."],
+  },
+  {
+    version: "4.25",
+    date: "2026-10-08",
+    changes: ["Anmeldebildschirm: Vereinsname korrigiert, Ordnername „Diesen Ordner Laden“ in der Kurzanleitung."],
+  },
+  {
+    version: "4.24",
+    date: "2026-10-08",
+    changes: ["Anmeldebildschirm mit Kurzbeschreibung, Kurzanleitung, Kontakthinweis und Version."],
+  },
   {
     version: "4.23",
     date: "2026-10-08",
