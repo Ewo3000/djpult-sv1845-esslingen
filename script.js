@@ -1913,6 +1913,15 @@ function updateSpecialButtons() {
     }
   });
 
+  const btnSixSeven = document.getElementById("btn-sixseven");
+  if (btnSixSeven) {
+    const hasSixSeven = Array.isArray(specialTracks.sixseven) && specialTracks.sixseven.length > 0;
+    btnSixSeven.classList.toggle("opacity-50", !hasSixSeven);
+    btnSixSeven.classList.toggle("cursor-not-allowed", !hasSixSeven);
+    btnSixSeven.classList.toggle("opacity-100", hasSixSeven);
+    btnSixSeven.classList.toggle("cursor-pointer", hasSixSeven);
+  }
+
   renderPauseButtons();
 }
 
@@ -2681,6 +2690,23 @@ function playRandomOpponentTrack() {
   playAudio(chosen.url, chosen.display, "gegner", chosen.id);
 }
 
+function playSixSeven() {
+  const songs = specialTracks.sixseven || [];
+  if (!songs.length) {
+    showToast("Keine Songs mit _SIXSEVEN geladen.");
+    return;
+  }
+  if (songs.length === 1) {
+    const song = songs[0];
+    playAudio(song.url, song.display, "sixseven", song.id);
+    return;
+  }
+  const chosen = pickWeightedSong(songs);
+  if (chosen) {
+    playAudio(chosen.url, chosen.display, "sixseven", chosen.id);
+  }
+}
+
 // -----------------------------
 // WebRTC Remote-Control (Player)
 // -----------------------------
@@ -2899,6 +2925,9 @@ function handleRemoteCommand(command, payload) {
     case "randomOpponent":
       playRandomOpponentTrack();
       break;
+    case "playSixSeven":
+      playSixSeven();
+      break;
     case "special":
       handleSpecialFromRemote(payload);
       break;
@@ -2932,6 +2961,10 @@ function findSongById(categoryKey, songId) {
 
 function handleSpecialFromRemote(payload) {
   if (!payload || !payload.type) return;
+  if (payload.type === "sixseven") {
+    playSixSeven();
+    return;
+  }
   if (payload.type === "timeout" && specialTracks.timeout) {
     playAudio(specialTracks.timeout.url, specialTracks.timeout.display || "Timeout", null, specialTracks.timeout.id);
     return;
