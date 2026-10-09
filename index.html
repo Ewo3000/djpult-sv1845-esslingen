@@ -76,7 +76,7 @@
             <ol>
               <li><strong>Songs laden:</strong> Auf „Songs laden“ tippen und den Ordner <code>Diesen Ordner Laden</code> wählen (darin <code>music</code>, <code>special_music</code> und <code>markierungen.json</code>). Die Songs bleiben auf dem Gerät, nichts wird hochgeladen.</li>
               <li><strong>Abspielen:</strong> Einen Song antippen. Ein neuer Song ersetzt den laufenden.</li>
-              <li><strong>Punkt!</strong> Unten <strong>Eigene Punkte</strong> (Stimmungslieder) oder <strong>Gegnerpunkte</strong> (Durchatmen) für einen zufälligen Song. <strong>★ Top-Stimmung</strong> und <strong>👏 Mitklatschen</strong> spielen zufällige Favoriten.</li>
+              <li><strong>Punkt!</strong> Unten <strong>Eigene Punkte</strong> (Stimmungslieder) oder <strong>Gegnerpunkte</strong> (Durchatmen) für einen zufälligen Song. <strong>6/7</strong> spielt Titel mit <code>_SIXSEVEN</code>.</li>
               <li><strong>Stoppen:</strong> <strong>Stop</strong> blendet den Song in etwa einer Sekunde aus.</li>
               <li><strong>Merken:</strong> Einen Song <strong>lange drücken</strong>, um ihn zu markieren (Reiter „Markierungen“).</li>
             </ol>
@@ -104,9 +104,9 @@
             <ul>
               <li><strong>Timeout, Walk-On:</strong> spielen die Songs aus <code>special_music</code>.</li>
               <li><strong>Pausen-Walzen:</strong> Mit dem Finger hoch und runter wischen, der mittlere Eintrag ist gewählt. Ein Tippen auf den mittleren Eintrag spielt ab, ein Tippen auf einen anderen dreht die Walze nur dorthin. Bis zu 4 Pausen-Songs bleiben normale Knöpfe, ab 5 gibt es zwei Walzen, die sich endlos drehen (nach dem letzten Song kommt wieder der erste). Gespielte Pausen-Songs sind mit ✓ markiert und durchgestrichen, die Walze dreht danach zum nächsten ungespielten Song. Sind alle gespielt, beginnt eine neue Runde. Die Markierung bleibt nach einem App-Neustart erhalten und wird mit „Reset“ zurückgesetzt.</li>
+              <li><strong>6/7:</strong> spielt Titel mit <code>_SIXSEVEN</code> (bei mehreren Songs zufällig).</li>
               <li><strong>Eigene Punkte / Gegnerpunkte:</strong> zufälliger Song aus den Eigene-Punkte-Spalten bzw. der Gegner-Spalte.</li>
-              <li><strong>★ Top-Stimmung / 👏 Mitklatschen:</strong> zufälliger Song aus der jeweiligen Markierung.</li>
-              <li><strong>So wählt der Zufall:</strong> Die am seltensten gespielten Songs kommen klar bevorzugt dran. Die <strong>letzten 4 gespielten Songs</strong> werden übersprungen, egal über welchen Button oder von Hand gespielt. So kommt derselbe Song nie direkt zweimal hintereinander, auch nicht bei Top-Stimmung und Mitklatschen.</li>
+              <li><strong>So wählt der Zufall:</strong> Die am seltensten gespielten Songs kommen klar bevorzugt dran. Die <strong>letzten 4 gespielten Songs</strong> werden übersprungen, egal über welchen Button oder von Hand gespielt. So kommt derselbe Song nie direkt zweimal hintereinander.</li>
               <li><strong>Stop:</strong> blendet den Song aus.</li>
             </ul>
             <h3>Oben rechts: Now Playing</h3>
@@ -121,6 +121,7 @@
               <li><code>_BLOCK</code> → Block</li>
               <li><code>_OPP</code> → Gegner</li>
               <li><code>_FUN</code> → Spaß &amp; Extras</li>
+              <li><code>_SIXSEVEN</code> → Button 6/7</li>
               <li>ohne Endung → verteilt auf Sonstiges 1 bis 3</li>
             </ul>
             <h3>Ordner <code>special_music</code></h3>
@@ -320,16 +321,11 @@
       <div class="pause-title">Pausensongs</div>
       <div id="pause-buttons" class="grid grid-cols-2 gap-3 w-full flex-1"></div>
     </div>
-    <div class="grid grid-cols-1 gap-3 w-full">
-      <button onclick="playRandomMarked('top')" class="bg-[#b45309] hover:bg-[#9a4608] rounded-xl px-2 py-2 shadow-md flex flex-col items-center justify-center leading-tight" title="Zufälliger Song aus Top-Stimmung">
-        <span class="text-base font-semibold">&#9733; Top-Stimmung</span>
-        <span class="text-xs text-amber-100">(zufällig)</span>
-      </button>
-      <button onclick="playRandomMarked('clap')" class="bg-[#0f766e] hover:bg-[#0c625b] rounded-xl px-2 py-2 shadow-md flex flex-col items-center justify-center leading-tight" title="Zufälliger Song aus Mitklatschen">
-        <span class="text-base font-semibold">&#128079; Mitklatschen</span>
-        <span class="text-xs text-teal-100">(zufällig)</span>
-      </button>
-    </div>
+    <button id="btn-sixseven" onclick="playSixSeven()"
+      class="bg-[#d97706] hover:bg-[#b45309] text-white rounded-xl px-2 py-4 shadow-md flex items-center justify-center text-3xl font-bold transition-opacity opacity-50 cursor-not-allowed"
+      title="6/7 (_SIXSEVEN)">
+      6/7
+    </button>
     <button onclick="playRandomTrack()" class="px-2 py-5 bg-[#3b3f8f] rounded-xl hover:bg-[#32367d] shadow-md flex flex-col items-center justify-center leading-tight">
       <span class="text-lg font-semibold">Eigene Punkte</span>
       <span class="text-sm text-indigo-200">(zufällig)</span>
