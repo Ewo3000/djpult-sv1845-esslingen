@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Volleyball DJ Pult",
-  "short_name": "DJ Pult",
+  "name": "DJ Pult SV1845 Esslingen",
+  "short_name": "DJ Pult SV1845",
   "description": "DJ-Pult für die Volleyball-Halle: Musik-Snippets nach Kategorien abspielen.",
   "lang": "de",
   "start_url": "./index.html",

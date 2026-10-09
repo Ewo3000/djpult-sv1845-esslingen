@@ -1,4 +1,4 @@
-# Volleyball DJ Pult (statische PWA)
+# DJ Pult SV1845 Esslingen (statische PWA)
 
 - DJ-Pult für die Volleyball-Halle: Musik-Snippets nach Kategorien abspielen (Play, Stop mit Fade, Lautstärke).
 - Wichtige Dateien: `index.html` (UI), `script.js` (Logik & Button-Aufbau), `style.css` (Styles), `service-worker.js` (Offline-Cache der App-Dateien), `manifest.json` (App-Metadaten), `remote.html`/`remote.js` (Fernbedienung), `static/images/`.
