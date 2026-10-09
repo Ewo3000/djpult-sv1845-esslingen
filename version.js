@@ -2,11 +2,19 @@
 // MAJOR.MINOR: MAJOR bei grossen Aenderungen/neuen Features, MINOR bei kleineren Anpassungen.
 // Bei jeder Aenderung: APP_VERSION/APP_BUILD hochzaehlen UND oben in APP_CHANGELOG einen Eintrag ergaenzen.
 // -> neuer Cache, und das Pult zeigt auf dem Geraet, welche Version mit welchen Aenderungen laeuft.
-const APP_VERSION = "4.28";
-const APP_BUILD = "2026-10-09";
+const APP_VERSION = "4.29";
+const APP_BUILD = "2026-10-09-1";
 
 // Neueste Version zuerst.
 const APP_CHANGELOG = [
+  {
+    version: "4.29",
+    date: "2026-10-09",
+    changes: [
+      "Neu: Button „6/7“ in der unteren Leiste und auf der Remote für Tracks mit Endung _SIXSEVEN.",
+      "Entfernt: Buttons „Top-Stimmung“ und „Mitklatschen“ aus der unteren Leiste (Markierungen im Menü bleiben erhalten).",
+    ],
+  },
   {
     version: "4.28",
     date: "2026-10-09",

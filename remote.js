@@ -41,6 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
     nowCategory: document.getElementById("now-playing-category"),
     timeoutBtn: document.getElementById("special-timeout"),
     walkonBtn: document.getElementById("special-walkon"),
+    sixsevenBtn: document.getElementById("special-sixseven"),
     pausesContainer: document.getElementById("special-pauses"),
     refreshBtn: document.getElementById("refresh-connection-btn"),
     togglePairingBtn: document.getElementById("toggle-pairing"),
@@ -61,6 +62,7 @@ function bindRemoteUI() {
     volume,
     timeoutBtn,
     walkonBtn,
+    sixsevenBtn,
     refreshBtn,
     togglePairingBtn,
   } = rtc.ui;
@@ -84,6 +86,7 @@ function bindRemoteUI() {
   }
   if (timeoutBtn) timeoutBtn.addEventListener("click", () => sendCommand("special", { type: "timeout" }));
   if (walkonBtn) walkonBtn.addEventListener("click", () => sendCommand("special", { type: "walkon" }));
+  if (sixsevenBtn) sixsevenBtn.addEventListener("click", () => sendCommand("playSixSeven"));
 }
 
 function togglePairing() {

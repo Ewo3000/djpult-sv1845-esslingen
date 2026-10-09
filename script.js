@@ -37,6 +37,7 @@ const categories = {
 const specialTracks = {
   timeout: null,
   walkon: null,
+  sixseven: [],
   pauses: [],
 };
 
@@ -66,6 +67,7 @@ function cleanName(filename) {
     .replace(/_FUN/i, "")
     .replace(/_TIMEOUT/i, "")
     .replace(/_WALKON/i, "")
+    .replace(/_SIXSEVEN/i, "")
     .replace(/_PAUSE\d*/i, "")
     .replace(/\.(mp3|flac|wav|ogg)$/i, "")
     .trim();
@@ -77,13 +79,13 @@ function specialId(fileName) {
 }
 
 function getSpecialTracks() {
-  return [specialTracks.timeout, specialTracks.walkon, ...specialTracks.pauses].filter(Boolean);
+  return [specialTracks.timeout, specialTracks.walkon, ...specialTracks.pauses, ...specialTracks.sixseven].filter(Boolean);
 }
 
 function revokeAllSongUrls() {
   const urls = [];
   Object.values(categories).forEach((cat) => cat.items.forEach((song) => urls.push(song.url)));
-  [specialTracks.timeout, specialTracks.walkon, ...specialTracks.pauses].forEach((track) => {
+  [specialTracks.timeout, specialTracks.walkon, ...specialTracks.pauses, ...specialTracks.sixseven].forEach((track) => {
     if (track && track.url) urls.push(track.url);
   });
   urls.forEach((url) => {
@@ -102,6 +104,7 @@ function resetCategories() {
   });
   specialTracks.timeout = null;
   specialTracks.walkon = null;
+  specialTracks.sixseven = [];
   specialTracks.pauses = [];
 }
 
@@ -135,6 +138,18 @@ function handleFiles(fileList) {
 
     const inSpecial = /(^|[\\/])special_music[\\/]/i.test(relPath);
     const upper = file.name.toUpperCase();
+
+    if (upper.includes("_SIXSEVEN")) {
+      specialTracks.sixseven.push({
+        id: inSpecial ? specialId(file.name) : nfc(file.name),
+        size: file.size,
+        name: file.name,
+        display: cleanName(file.name),
+        category: "sixseven",
+        url: URL.createObjectURL(file),
+      });
+      return;
+    }
 
     if (inSpecial) {
       let key = null;
@@ -1898,6 +1913,15 @@ function updateSpecialButtons() {
     }
   });
 
+  const btnSixSeven = document.getElementById("btn-sixseven");
+  if (btnSixSeven) {
+    const hasSixSeven = Array.isArray(specialTracks.sixseven) && specialTracks.sixseven.length > 0;
+    btnSixSeven.classList.toggle("opacity-50", !hasSixSeven);
+    btnSixSeven.classList.toggle("cursor-not-allowed", !hasSixSeven);
+    btnSixSeven.classList.toggle("opacity-100", hasSixSeven);
+    btnSixSeven.classList.toggle("cursor-pointer", hasSixSeven);
+  }
+
   renderPauseButtons();
 }
 
@@ -2666,6 +2690,23 @@ function playRandomOpponentTrack() {
   playAudio(chosen.url, chosen.display, "gegner", chosen.id);
 }
 
+function playSixSeven() {
+  const songs = specialTracks.sixseven || [];
+  if (!songs.length) {
+    showToast("Keine Songs mit _SIXSEVEN geladen.");
+    return;
+  }
+  if (songs.length === 1) {
+    const song = songs[0];
+    playAudio(song.url, song.display, "sixseven", song.id);
+    return;
+  }
+  const chosen = pickWeightedSong(songs);
+  if (chosen) {
+    playAudio(chosen.url, chosen.display, "sixseven", chosen.id);
+  }
+}
+
 // -----------------------------
 // WebRTC Remote-Control (Player)
 // -----------------------------
@@ -2884,6 +2925,9 @@ function handleRemoteCommand(command, payload) {
     case "randomOpponent":
       playRandomOpponentTrack();
       break;
+    case "playSixSeven":
+      playSixSeven();
+      break;
     case "special":
       handleSpecialFromRemote(payload);
       break;
@@ -2917,6 +2961,10 @@ function findSongById(categoryKey, songId) {
 
 function handleSpecialFromRemote(payload) {
   if (!payload || !payload.type) return;
+  if (payload.type === "sixseven") {
+    playSixSeven();
+    return;
+  }
   if (payload.type === "timeout" && specialTracks.timeout) {
     playAudio(specialTracks.timeout.url, specialTracks.timeout.display || "Timeout", null, specialTracks.timeout.id);
     return;
